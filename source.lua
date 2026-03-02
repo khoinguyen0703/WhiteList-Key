@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V100 - SMART TARGET HOPPER ]]
--- [ ADDED: MIN/MAX PLAYER HOP LOGIC | UPTIME & DYNAMIC STATUS ]
+-- [[ PLEPORM HUB V101 - COIN SAFEGUARD ]]
+-- [ FIXED: DELETE MAP BUG DESTROYING COINS | ADDED: COIN PROTECTION ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -46,17 +46,32 @@ end
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
--- 🛠️ 3. OPTIMIZE (REAL DELETE MAP & PLAYERS)
+-- 🛠️ 3. OPTIMIZE (SAFE DELETE MAP & PLAYERS)
+-- Hàm bảo vệ Vàng tuyệt đối khỏi Delete Map
+local function isProtectedFromDelete(inst)
+    if not inst then return true end
+    local name = inst.Name:lower()
+    if name:find("coin") or name:find("gold") then return true end
+    if inst.Parent then
+        local pName = inst.Parent.Name:lower()
+        if pName:find("coin") or pName:find("gold") then return true end
+    end
+    return false
+end
+
 local function OptimizePerformance()
     local Config = getgenv().Plepor_Config
     task.spawn(function()
         while getgenv().Plepor_Executed do
             if Config["Delete Map"] then
                 for _, v in pairs(workspace:GetDescendants()) do
-                    if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") and not (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                        v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
-                    elseif v:IsA("Decal") or v:IsA("Texture") then
-                        v:Destroy()
+                    -- Chừa lại vàng và nhân vật
+                    if not isProtectedFromDelete(v) then
+                        if v:IsA("BasePart") and not (v.Parent and v.Parent:FindFirstChild("Humanoid")) then
+                            v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
+                        elseif v:IsA("Decal") or v:IsA("Texture") then
+                            v:Destroy()
+                        end
                     end
                 end
                 for _, v in pairs(lighting:GetChildren()) do
@@ -91,7 +106,7 @@ local function BypassAC(char)
     end
 end
 
--- 🔵 4. AUTO HOP TARGET SERVER (FIXED > 2 & <= MAX)
+-- 🔵 4. AUTO HOP TARGET SERVER
 local function ServerHop()
     pcall(function()
         local Config = getgenv().Plepor_Config
@@ -99,12 +114,9 @@ local function ServerHop()
         local PlaceId = game.PlaceId
         
         local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
-        
-        -- Ưu tiên server vắng trước nhưng phải lớn hơn 2 người
         table.sort(res, function(a, b) return a.playing < b.playing end)
         
         for _, v in pairs(res) do 
-            -- CHỈ NHẢY VÀO SERVER CÓ: Số người > 2 VÀ Số người <= Config Khách nhập
             if v.playing > 2 and v.playing <= MaxAllowed and v.id ~= game.JobId then 
                 game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceId, v.id)
                 return
@@ -121,7 +133,7 @@ main.Size = UDim2.new(0, 320, 0, 190); main.Position = UDim2.new(0.5, 0, 0.5, 0)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 
-local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V100"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V101"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
 
 local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 35); timeLbl.TextSize = 13; timeLbl.Font = Enum.Font.GothamMedium; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1
 
@@ -141,19 +153,16 @@ task.spawn(function()
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
             
-            -- CHECK NGƯỜI CHƠI ĐỂ HOP (QUÁ ĐÔNG HOẶC QUÁ VẮNG)
             local currentPlayers = #game.Players:GetPlayers()
             local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
             
             if Config["Auto Hop"] then
                 if currentPlayers > MaxAllowed then
                     CurrentAction = "SERVER TOO FULL! HOPPING..."
-                    ServerHop()
-                    break
+                    ServerHop(); break
                 elseif currentPlayers <= 2 then
                     CurrentAction = "SERVER TOO EMPTY! HOPPING..."
-                    ServerHop()
-                    break
+                    ServerHop(); break
                 end
             end
 
@@ -162,8 +171,7 @@ task.spawn(function()
                 
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then 
                     CurrentAction = "STUCK FOR 3 MINS! HOPPING..."
-                    ServerHop() 
-                    break 
+                    ServerHop(); break 
                 end
                 
                 if currentCoins >= 40 then
@@ -181,17 +189,18 @@ task.spawn(function()
                     if folder and not foundCoin then
                         for _, v in pairs(folder:GetDescendants()) do
                             if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                                if v.Parent and v.Transparency < 0.5 then
+                                -- Nới lỏng kiểm tra Transparency phòng hờ Delete Map ảnh hưởng nhẹ
+                                if v.Parent and v.Transparency < 0.9 then
                                     foundCoin = true
                                     CurrentAction = "COLLECTING COINS..."
                                     root.CFrame = v.CFrame
                                     firetouchinterest(root, v, 0)
                                     
                                     local t = tick()
-                                    while v.Parent and v.Transparency < 0.5 and tick() - t < 0.2 do rs.Heartbeat:Wait() end
+                                    while v.Parent and v.Transparency < 0.9 and tick() - t < 0.2 do rs.Heartbeat:Wait() end
                                     
                                     firetouchinterest(root, v, 1)
-                                    if not v.Parent or v.Transparency > 0.5 then
+                                    if not v.Parent or v.Transparency > 0.9 then
                                         currentCoins = currentCoins + 1
                                         lastCoinTick = tick()
                                         task.wait(Config["Farm Speed"] or 0.05)
@@ -204,11 +213,7 @@ task.spawn(function()
                 end
                 
                 if not foundCoin then 
-                    if hasMap then
-                        CurrentAction = "WAITING FOR COIN SPAWN..."
-                    else
-                        CurrentAction = "WAITING FOR NEXT MATCH..."
-                    end
+                    CurrentAction = hasMap and "WAITING FOR COIN SPAWN..." or "WAITING FOR NEXT MATCH..."
                     lastCoinTick = tick() 
                 end
             end
