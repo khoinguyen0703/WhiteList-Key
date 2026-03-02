@@ -150,11 +150,17 @@ local stroke = Instance.new("UIStroke", main); stroke.Color = Color3.fromRGB(255
 local glow = Instance.new("ImageLabel", main); glow.Name = "GlowEffect"; glow.BackgroundTransparency = 1; glow.Position = UDim2.new(0, -30, 0, -30); glow.Size = UDim2.new(1, 60, 1, 60); glow.ZIndex = 0; glow.Image = "rbxassetid://5028857084"; glow.ImageColor3 = Color3.fromRGB(255, 200, 100); glow.ImageTransparency = 0.4; glow.ScaleType = Enum.ScaleType.Slice; glow.SliceCenter = Rect.new(24, 24, 276, 276)
 
 local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Position = UDim2.new(0, 0, 0, 5); title.Text = "PLEPORM HUB - TRACK STATS"; title.TextColor3 = Color3.fromRGB(255, 255, 255); title.TextSize = 22; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1; title.ZIndex = 2
-local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 45); timeLbl.TextSize = 18; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1; timeLbl.ZIndex = 2
-local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 75); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(255, 215, 0); goldLbl.BackgroundTransparency = 1; goldLbl.ZIndex = 2
-local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 105); bagLbl.TextSize = 20; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(200, 160, 100); bagLbl.BackgroundTransparency = 1; bagLbl.ZIndex = 2
-local playersLbl = Instance.new("TextLabel", main); playersLbl.Size = UDim2.new(1, 0, 0, 25); playersLbl.Position = UDim2.new(0, 0, 0, 135); playersLbl.TextSize = 18; playersLbl.Font = Enum.Font.Arcade; playersLbl.TextColor3 = Color3.fromRGB(150, 200, 255); playersLbl.BackgroundTransparency = 1; playersLbl.ZIndex = 2
-local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 40); statusLbl.Position = UDim2.new(0, 0, 0, 165); statusLbl.TextSize = 16; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1; statusLbl.ZIndex = 2; statusLbl.TextWrapped = true
+
+-- Cài sẵn Text mặc định thay vì để trống lòi chữ "Label"
+local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 45); timeLbl.TextSize = 18; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1; timeLbl.ZIndex = 2; timeLbl.Text = "UPTIME: 00:00:00"
+
+local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 75); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(255, 215, 0); goldLbl.BackgroundTransparency = 1; goldLbl.ZIndex = 2; goldLbl.Text = "TOTAL GOLD: $0"
+
+local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 105); bagLbl.TextSize = 20; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(200, 160, 100); bagLbl.BackgroundTransparency = 1; bagLbl.ZIndex = 2; bagLbl.Text = "COIN BAG: 0/40"
+
+local playersLbl = Instance.new("TextLabel", main); playersLbl.Size = UDim2.new(1, 0, 0, 25); playersLbl.Position = UDim2.new(0, 0, 0, 135); playersLbl.TextSize = 18; playersLbl.Font = Enum.Font.Arcade; playersLbl.TextColor3 = Color3.fromRGB(150, 200, 255); playersLbl.BackgroundTransparency = 1; playersLbl.ZIndex = 2; playersLbl.Text = "PLAYERS: LOADING..."
+
+local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 40); statusLbl.Position = UDim2.new(0, 0, 0, 165); statusLbl.TextSize = 16; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1; statusLbl.ZIndex = 2; statusLbl.TextWrapped = true; statusLbl.Text = "ACTION:\nINITIALIZING..."
 
 ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 215)}):Play()
 
@@ -255,18 +261,25 @@ task.spawn(function()
             local gold = "0"
             if sb then
                 for _, v in pairs(sb:GetDescendants()) do
-                    if v:IsA("TextLabel") and v.Text:match("%d") and not v.Text:find("/") then
-                        local n = v.Text:match("[%d%,]+")
-                        if n and n ~= "2018" and n ~= "2019" then gold = n break end
+                    -- Check an toàn v.Text để không bị lỗi nhịp
+                    if v:IsA("TextLabel") and type(v.Text) == "string" and v.Text ~= "" then
+                        if v.Text:match("%d") and not v.Text:find("/") then
+                            local n = v.Text:match("[%d%,]+")
+                            if n and n ~= "2018" and n ~= "2019" then gold = n break end
+                        end
                     end
                 end
             end
             
             goldLbl.Text = "TOTAL GOLD: $" .. gold
-            bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
-            playersLbl.Text = "PLAYERS: " .. tostring(#game.Players:GetPlayers()) .. "/12"
+            bagLbl.Text = "COIN BAG: " .. tostring(currentCoins) .. "/40"
             
-            statusLbl.Text = "ACTION:\n" .. CurrentAction
+            local players = game.Players:GetPlayers()
+            playersLbl.Text = "PLAYERS: " .. tostring(#players) .. "/12"
+            
+            statusLbl.Text = "ACTION:\n" .. tostring(CurrentAction)
+            
+            -- Chỉnh màu text theo trạng thái
             if CurrentAction:find("COLLECTING") then statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
             elseif CurrentAction:find("WAITING") then statusLbl.TextColor3 = Color3.fromRGB(255, 200, 100)
             elseif CurrentAction:find("FULL") or CurrentAction:find("HOPPING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
