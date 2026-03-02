@@ -1,11 +1,10 @@
--- [[ PLEPORM HUB V102 - PIXEL UI EDITION ]]
--- [ ADDED: 8-BIT/MINECRAFT PIXEL FONT FOR ALL STATS ]
+-- [[ PLEPORM HUB V104 - SMART UI & SUPER TURBO ]]
+-- [ ADDED: UI TEXT SCANNER | IMPROVED: ZERO-LAG COIN COLLECTION ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local lp = game.Players.LocalPlayer
 local rs = game:GetService("RunService")
-local vu = game:GetService("VirtualUser")
 local pgui = lp:WaitForChild("PlayerGui")
 local lighting = game:GetService("Lighting")
 local http = game:GetService("HttpService")
@@ -41,7 +40,6 @@ if getgenv().Plepor_Executed then
         for _, v in pairs(getgenv().PleporM_Connections) do if v then v:Disconnect() end end
     end
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
-    if lighting:FindFirstChild("Pleporm_Blur") then lighting.Pleporm_Blur:Destroy() end
 end
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
@@ -106,114 +104,115 @@ end
 
 -- 🔵 4. AUTO HOP TARGET SERVER
 local function ServerHop()
+    CurrentAction = "HOPPING SERVER..."
     pcall(function()
         local Config = getgenv().Plepor_Config
         local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
-        local PlaceId = game.PlaceId
-        
-        local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
+        local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
         table.sort(res, function(a, b) return a.playing < b.playing end)
-        
         for _, v in pairs(res) do 
             if v.playing > 2 and v.playing <= MaxAllowed and v.id ~= game.JobId then 
-                game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceId, v.id)
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id)
                 return
             end 
         end
     end)
 end
 
--- 🔵 5. UI GLASS DESIGN (FONT PIXEL - ARCADE)
-local blur = Instance.new("BlurEffect", lighting); blur.Name = "Pleporm_Blur"; blur.Size = 18
+-- 🔵 5. UI GLASS DESIGN (PIXEL FONT)
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
 main.Size = UDim2.new(0, 320, 0, 190); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 
-local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V102"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 25; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1
-
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V104"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 25; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1
 local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 35); timeLbl.TextSize = 16; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1
-
 local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 60); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
-
 local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 90); bagLbl.TextSize = 22; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
-
 local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140); statusLbl.TextSize = 14; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1
 
--- 🟡 6. FARM ENGINE & STATUS UPDATER
+-- 🟡 6. SMART UI DETECTOR & SUPER TURBO FARM
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.01)
+        task.wait(0.1) -- Vòng lặp nhẹ nhàng 10 lần/giây
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
-            
-            local currentPlayers = #game.Players:GetPlayers()
-            local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
-            
-            if Config["Auto Hop"] then
-                if currentPlayers > MaxAllowed then
-                    CurrentAction = "SERVER TOO FULL! HOPPING..."
-                    ServerHop(); break
-                elseif currentPlayers <= 2 then
-                    CurrentAction = "SERVER TOO EMPTY! HOPPING..."
-                    ServerHop(); break
-                end
-            end
-
-            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                local root = lp.Character.HumanoidRootPart
-                
-                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then 
-                    CurrentAction = "STUCK FOR 3 MINS! HOPPING..."
-                    ServerHop(); break 
-                end
-                
-                if currentCoins >= 40 then
-                    CurrentAction = "BAG FULL! RESETTING CHAR..."
-                    isResetting = true; lp.Character:BreakJoints()
-                    task.wait(7.5); currentCoins = 0; isResetting = false; continue
-                end
-
-                local foundCoin = false
-                local folders = {workspace:FindFirstChild("Normal"), workspace:FindFirstChild("Map"), workspace:FindFirstChild("CoinContainer")}
-                
-                local hasMap = false
-                for _, folder in pairs(folders) do
-                    if folder and #folder:GetChildren() > 0 then hasMap = true end
-                    if folder and not foundCoin then
-                        for _, v in pairs(folder:GetDescendants()) do
-                            if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                                if v.Parent and v.Transparency < 0.9 then
-                                    foundCoin = true
-                                    CurrentAction = "COLLECTING COINS..."
-                                    root.CFrame = v.CFrame
-                                    firetouchinterest(root, v, 0)
-                                    
-                                    local t = tick()
-                                    while v.Parent and v.Transparency < 0.9 and tick() - t < 0.2 do rs.Heartbeat:Wait() end
-                                    
-                                    firetouchinterest(root, v, 1)
-                                    if not v.Parent or v.Transparency > 0.9 then
-                                        currentCoins = currentCoins + 1
-                                        lastCoinTick = tick()
-                                        task.wait(Config["Farm Speed"] or 0.05)
-                                    end
-                                    break
-                                end
-                            end
+            pcall(function()
+                -- 1. KIỂM TRA MÀN HÌNH (SMART UI DETECTOR)
+                local isWaitingForMap = false
+                for _, v in pairs(pgui:GetDescendants()) do
+                    if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
+                        local txt = string.lower(v.Text)
+                        if txt:find("waiting for your turn") or 
+                           txt:find("receive your weapon") or 
+                           txt:find("loading") or 
+                           txt:find("intermission") or 
+                           txt:find("voting") then
+                            isWaitingForMap = true
+                            break
                         end
                     end
                 end
-                
-                if not foundCoin then 
-                    CurrentAction = hasMap and "WAITING FOR COIN SPAWN..." or "WAITING FOR NEXT MATCH..."
-                    lastCoinTick = tick() 
+
+                if isWaitingForMap then
+                    CurrentAction = "WAITING FOR MATCH..."
+                    return -- Dừng việc quét vàng, chờ đến khi vào trận
                 end
-            end
+
+                -- 2. LOGIC ĐẦY TÚI & KẸT
+                local char = lp.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+
+                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then 
+                    ServerHop(); return 
+                end
+
+                if currentCoins >= 40 then
+                    CurrentAction = "BAG FULL! RESETTING..."
+                    isResetting = true; char:BreakJoints()
+                    task.wait(7.5); currentCoins = 0; isResetting = false; return
+                end
+
+                -- 3. QUÉT VÀ NHẶT VÀNG SIÊU TỐC (Tránh lag)
+                local searchArea = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map") or workspace:FindFirstChild("CoinContainer") or workspace
+                local foundCoins = {}
+                
+                -- Đổ vàng vào danh sách trước (Tối ưu RAM/CPU)
+                for _, v in ipairs(searchArea:GetDescendants()) do
+                    if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
+                        if v.Transparency < 0.9 then 
+                            table.insert(foundCoins, v)
+                        end
+                    end
+                end
+
+                -- Bắt đầu đi nhặt
+                if #foundCoins > 0 then
+                    CurrentAction = "COLLECTING COINS..."
+                    for _, v in ipairs(foundCoins) do
+                        if v and v.Parent and v.Transparency < 0.9 then
+                            root.CFrame = v.CFrame
+                            firetouchinterest(root, v, 0)
+                            firetouchinterest(root, v, 1)
+                            
+                            -- Đánh lừa Client là đã nhặt để vòng lặp sau bỏ qua, không xài Destroy()
+                            v.Transparency = 1 
+                            v.CanCollide = false
+                            
+                            currentCoins = currentCoins + 1
+                            lastCoinTick = tick()
+                            task.wait(0.02) -- Tốc độ bàn thờ nhưng vừa đủ để không bị Kick
+                        end
+                    end
+                else
+                    CurrentAction = "WAITING FOR COIN SPAWN..."
+                end
+            end)
         end
     end
 end)
@@ -228,7 +227,7 @@ task.spawn(function()
             local hours = math.floor(elapsed / 3600)
             local mins = math.floor((elapsed % 3600) / 60)
             local secs = math.floor(elapsed % 60)
-            timeLbl.Text = string.format("UPTIME: %02d:%02d:%02d", hours, mins, secs) -- Bỏ icon đồng hồ vì font Arcade không hỗ trợ emoji
+            timeLbl.Text = string.format("UPTIME: %02d:%02d:%02d", hours, mins, secs)
 
             local sb = pgui:FindFirstChild("Scoreboard", true)
             local gold = "0"
@@ -243,7 +242,7 @@ task.spawn(function()
             goldLbl.Text = "TOTAL GOLD: $" .. gold
             bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
             
-            statusLbl.Text = "STATUS: " .. CurrentAction -- Bỏ icon chấm tròn
+            statusLbl.Text = "STATUS: " .. CurrentAction
             if CurrentAction:find("COLLECTING") then
                 statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
             elseif CurrentAction:find("WAITING") then
