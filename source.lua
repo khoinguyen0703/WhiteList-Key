@@ -23,7 +23,7 @@ local function Verify()
 end
 
 if not Verify() then
-    lp:Kick("❌ SAI KEY HOẶC KEY HẾT HẠN! Vui lòng liên hệ PleporM Hub.")
+    lp:Kick("WRONG KEY OR DONT USE IT AT ALL!!!!.")
     return
 end
 
