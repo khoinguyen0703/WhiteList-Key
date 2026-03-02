@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V87 - THE GOD MODE EDITION ]]
--- [ FINAL CHECK: UI CENTERED | ANTI-STUCK | AUTO-TIMEOUT | BYPASS AC ]
+-- [[ PLEPORM HUB V89 - ULTIMATE FIX & WHITELIST ]]
+-- [ STATUS: FIXED GOLD SPAWN | GLASS UI | SECURITY ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -11,11 +11,33 @@ local lighting = game:GetService("Lighting")
 local ts = game:GetService("TweenService")
 local http = game:GetService("HttpService")
 
-local Config = getgenv().Plepor_Config
-local UserKey = _G.script_key or "No Key"
-local MaxPlayers = tonumber(Config["Max Players to Hop"]) or 5
+-- 🔑 1. HỆ THỐNG WHITELIST KEY (QUAN TRỌNG)
+local script_key = _G.script_key or "No Key"
+local whitelist_url = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt"
+local is_whitelisted = false
 
--- 🛡️ 1. ULTIMATE CLEANUP & BYPASS
+local success, result = pcall(function()
+    return game:HttpGet(whitelist_url .. "?t=" .. tick()) -- Thêm tick để tránh bị cache key cũ
+end)
+
+if success then
+    for line in result:gmatch("[^\r\n]+") do
+        if line:gsub("%s+", "") == script_key:gsub("%s+", "") then
+            is_whitelisted = true
+            break
+        end
+    end
+else
+    lp:Kick("❌ Lỗi kết nối Server Whitelist (Kiểm tra mạng)!")
+    return
+end
+
+if not is_whitelisted then
+    lp:Kick("❌ Key không hợp lệ hoặc đã hết hạn!")
+    return
+end
+
+-- 🛡️ 2. CLEANUP & BYPASS SYSTEM
 if getgenv().Plepor_Executed then 
     for _, v in pairs(getgenv().PleporM_Connections or {}) do if v then v:Disconnect() end end
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
@@ -36,7 +58,7 @@ local function BypassAC(char)
     end
 end
 
--- 🟢 2. DATA TRACKING (PRECISION)
+-- 🟢 3. DATA FUNCTIONS
 local function GetTotalGold()
     local gold = "0"
     pcall(function()
@@ -53,19 +75,7 @@ local function GetTotalGold()
     return gold
 end
 
-local function ServerHop()
-    pcall(function()
-        local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
-        for _, v in pairs(res) do 
-            if v.playing < MaxPlayers and v.id ~= game.JobId then 
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id)
-                return
-            end 
-        end
-    end)
-end
-
--- 🔵 3. GLASS UI (CENTERED & BLURRED)
+-- 🔵 4. UI GLASS (CENTERED)
 local blur = Instance.new("BlurEffect", lighting)
 blur.Name = "Pleporm_Blur"; blur.Size = 0
 ts:Create(blur, TweenInfo.new(1.5), {Size = 18}):Play()
@@ -73,12 +83,12 @@ ts:Create(blur, TweenInfo.new(1.5), {Size = 18}):Play()
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
 main.Size = UDim2.new(0, 320, 0, 180); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.BackgroundColor3 = Color3.fromRGB(10, 10, 10); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 local stroke = Instance.new("UIStroke", main); stroke.Thickness = 2; stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Transparency = 0.4
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V87"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
+title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V89"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
 title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
 
 local goldLbl = Instance.new("TextLabel", main)
@@ -93,61 +103,76 @@ local statusLbl = Instance.new("TextLabel", main)
 statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140)
 statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
 
--- 🟡 4. FARM ENGINE (WITH STUCK DETECTION)
+-- 🟡 5. FIXED FARM ENGINE (NHẶT VÀNG SIÊU NHẠY)
 local currentCoins, isResetting = 0, false
-local lastCoinTime = tick()
+local lastCoinTick = tick()
 
 task.spawn(function()
     while task.wait(0.01) do
-        if Config["Turbo Farm"] and not isResetting then
-            local map = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map")
-            if map and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+        local Config = getgenv().Plepor_Config
+        if Config and Config["Turbo Farm"] and not isResetting then
+            -- Quét vàng trên toàn bộ Workspace để không sót
+            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 
-                -- STUCK DETECTION: 5 phút không nhặt xu nào -> Tự đổi Server
-                if tick() - lastCoinTime > 300 then ServerHop() end
-
-                -- RESET LOGIC
-                if currentCoins >= 40 then
-                    isResetting = true; local oldG = GetTotalGold()
-                    lp.Character:BreakJoints()
-                    task.delay(6, function() 
-                        local newG = GetTotalGold(); currentCoins = 0
-                        -- Gửi Webhook tại đây (Dùng lại code V84)
+                -- Đổi Server nếu đứng im 5 phút
+                if tick() - lastCoinTick > 300 and Config["Auto Hop"] then
+                    pcall(function()
+                        local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
+                        for _, v in pairs(res) do if v.playing < tonumber(Config["Max Players to Hop"]) and v.id ~= game.JobId then game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id) break end end
                     end)
-                    task.wait(7.5); isResetting = false; continue
                 end
 
-                -- COLLECTION
+                -- Reset khi đầy túi
+                if currentCoins >= 40 then
+                    isResetting = true
+                    lp.Character:BreakJoints()
+                    task.wait(7.5)
+                    currentCoins = 0
+                    isResetting = false
+                    continue
+                end
+
+                -- HÀM NHẶT VÀNG ĐÃ FIX
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
+                        -- Check xem đồng vàng có "sống" không (không tàng hình, có cha là Map)
                         if v.Parent and v.Transparency < 0.5 then
-                            root.CFrame = v.CFrame; firetouchinterest(root, v, 0)
-                            local t = tick(); repeat rs.Heartbeat:Wait() until not v.Parent or v.Transparency > 0.8 or (tick()-t > 0.25)
+                            -- Ép nhân vật tới và gửi tín hiệu chạm liên tục cho đến khi nhặt được
+                            root.CFrame = v.CFrame
+                            firetouchinterest(root, v, 0)
+                            
+                            local t = tick()
+                            -- Đợi tối đa 0.3s cho đồng vàng biến mất
+                            while v.Parent and v.Transparency < 0.5 and tick() - t < 0.3 do
+                                rs.Heartbeat:Wait()
+                            end
+                            
                             firetouchinterest(root, v, 1)
-                            if not v.Parent or v.Transparency > 0.8 then
+                            
+                            -- Nếu vàng biến mất => Nhặt thành công
+                            if not v.Parent or v.Transparency > 0.5 then
                                 currentCoins = currentCoins + 1
-                                lastCoinTime = tick() -- Reset đồng hồ kẹt
-                                task.wait(Config["Farm Speed"] or 0.05); break
+                                lastCoinTick = tick()
+                                task.wait(Config["Farm Speed"] or 0.05)
+                                break 
                             end
                         end
                     end
                 end
-            else
-                currentCoins = 0
             end
         end
     end
 end)
 
--- ⚪ 5. FINAL INITIALIZE
+-- ⚪ 6. INITIALIZE UI LOOP
 task.spawn(function()
     while task.wait(0.5) do
         if not sg.Parent then break end
         goldLbl.Text = "TOTAL GOLD: $" .. GetTotalGold()
         bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
         local inMatch = (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position.Y < 150)
-        statusLbl.Text = inMatch and "● STATUS: FARMING" or "○ STATUS: WAITING"
+        statusLbl.Text = inMatch and "● STATUS: FARMING" or "○ STATUS: WAITING LOBBY"
         statusLbl.TextColor3 = inMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
     end
 end)
