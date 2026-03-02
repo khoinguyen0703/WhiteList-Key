@@ -23,7 +23,7 @@ local lp = game.Players.LocalPlayer
 local RS = game:GetService("RunService")
 local HTTP = game:GetService("HttpService")
 
--- [[ 3. HÀM WEBHOOK PHONG CÁCH FENNIR HUB (VIP) ]]
+-- [[ 3. HÀM WEBHOOK FIX LỖI NIL VALUE ]]
 local function SendWebhook(goldCount)
     local url = Config["Webhook Url"]
     if not url or url == "" or url:find("Link_Webhook") then return end
@@ -39,23 +39,26 @@ local function SendWebhook(goldCount)
                 {["name"] = "ℹ️ Notes", ["value"] = "```Running smoothly on PleporM Hub.```", ["inline"] = false}
             },
             ["footer"] = {
-                ["text"] = "PleporM Hub • discord.gg/PlepormHub • " .. os.date("%X"),
-                ["icon_url"] = "https://i.imgur.com/your_icon.png" -- Fen có thể thay icon hub của mình
-            },
-            ["thumbnail"] = {["url"] = "https://i.imgur.com/your_image.png"} -- Thay ảnh đại diện hub của fen
+                ["text"] = "PleporM Hub • discord.gg/PlepormHub • " .. os.date("%X")
+            }
         }}
     }
 
-    pcall(function()
-        if request then
-            request({
+    -- Kiểm tra phương thức gửi Webhook tương thích với Executor
+    local requestFunc = syn and syn.request or http_request or request or (http and http.request)
+    
+    if requestFunc then
+        pcall(function()
+            requestFunc({
                 Url = url,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = HTTP:JSONEncode(data)
             })
-        end
-    end)
+        end)
+    else
+        warn("Executor của bạn không hỗ trợ hàm Request để gửi Webhook!")
+    end
 end
 
 -- [[ 4. LOGIC FARM & TỐI ƯU HÓA ]]
@@ -72,7 +75,7 @@ end
 -- Vòng lặp Farm Vàng
 task.spawn(function()
     local count = 0
-    SendWebhook(0) -- Báo cáo khi bắt đầu
+    SendWebhook(0) 
     
     while Config["Turbo Farm"] do
         task.wait(Config["Farm Speed"] or 0.1)
@@ -84,7 +87,6 @@ task.spawn(function()
             local target = nil
             local minDist = math.huge
             
-            -- Tìm vàng gần nhất
             for _, v in pairs(workspace:GetDescendants()) do
                 if v.Name == "Coin_Server" and v:IsA("BasePart") then
                     local d = (root.Position - v.Position).Magnitude
@@ -99,7 +101,6 @@ task.spawn(function()
                 count = count + 1
             end
             
-            -- Gửi Webhook mỗi 100 vàng
             if count % 100 == 0 and count > 0 then
                 SendWebhook(count)
             end
@@ -107,12 +108,13 @@ task.spawn(function()
     end
 end)
 
--- Anti-AFK & Ghost Mode
+-- Anti-AFK
 lp.Idled:Connect(function()
     game:GetService("VirtualUser"):CaptureController()
     game:GetService("VirtualUser"):ClickButton2(Vector2.new())
 end)
 
+-- Noclip & Ghost Mode
 RS.Stepped:Connect(function()
     pcall(function()
         if lp.Character then
@@ -128,4 +130,4 @@ RS.Stepped:Connect(function()
     end)
 end)
 
-print("PleporM Hub v22 Loaded!")
+print("PleporM Hub v22 (Fixed) Loaded!")
