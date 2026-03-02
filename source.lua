@@ -1,17 +1,20 @@
--- [[ PLEPORM HUB - ULTIMATE TRACK STATS ]]
--- [ GLOW UI | PLAYER TRACKER | GUARANTEED COLLECTION | BYPASS AC ]
+-- [[ PLEPORM HUB - ULTIMATE STABLE VERSION ]]
+-- [ GLOW UI | GUARANTEED COIN | FIX AUTO HOP | BYPASS AC ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local lp = game.Players.LocalPlayer
 local rs = game:GetService("RunService")
 local pgui = lp:WaitForChild("PlayerGui")
-local lighting = game:GetService("Lighting")
-local http = game:GetService("HttpService")
 local ts = game:GetService("TweenService")
+local http = game:GetService("HttpService")
+local tps = game:GetService("TeleportService")
 
 local ScriptStartTime = tick()
 local CurrentAction = "INITIALIZING SCRIPT..."
+local isHopping = false 
+local currentCoins = 0
+local lastCoinTick = tick()
 
 -- 🔑 1. WHITELIST SYSTEM
 local script_key = tostring(_G.script_key or "No Key"):gsub("%s+", "")
@@ -47,7 +50,7 @@ local function SendWebhook(goldAmount)
             ["content"] = "",
             ["embeds"] = {{
                 ["title"] = "💰 PleporM Hub - Farm Report",
-                ["description"] = "✅ **Successfully collected " .. tostring(goldAmount) .. " coins!**\n👤 **Player:** ||" .. lp.Name .. "||\n👥 **Server Players:** " .. tostring(#game.Players:GetPlayers()),
+                ["description"] = "✅ **Bag Full! Collected " .. tostring(goldAmount) .. " coins.**\n👤 **Player:** ||" .. lp.Name .. "||\n👥 **Server Players:** " .. tostring(#game.Players:GetPlayers()),
                 ["color"] = tonumber(0xFFD700)
             }}
         }
@@ -65,7 +68,7 @@ local function OptimizePerformance()
         while getgenv().Plepor_Executed do
             if Config["Delete Map"] then
                 for _, v in pairs(workspace:GetDescendants()) do
-                    if v:IsA("BasePart") and not (v.Name:lower():find("coin") or v.Name:lower():find("gold")) and not v.Parent:FindFirstChild("Humanoid") then
+                    if v:IsA("BasePart") and v.Name ~= "Coin_Server" and v.Name ~= "Coin" and not v.Parent:FindFirstChild("Humanoid") then
                         v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
                     elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
                 end
@@ -103,12 +106,11 @@ end
 table.insert(getgenv().PleporM_Connections, lp.CharacterAdded:Connect(BypassAC))
 if lp.Character then BypassAC(lp.Character) end
 
--- 🔵 5. AUTO HOP TARGET SERVER
+-- 🔵 5. AUTO HOP TARGET SERVER (STABILIZED)
 local function ServerHop()
     if isHopping then return end
     isHopping = true
     CurrentAction = "HOPPING SERVER..."
-    print("🚀 [LOG] Đang tìm Server mới...")
     
     pcall(function()
         local Config = getgenv().Plepor_Config
@@ -117,7 +119,6 @@ local function ServerHop()
         local data = http:JSONDecode(req)
         
         if data and data.data then
-            -- Xáo trộn server để tránh nhiều người nhảy vào cùng 1 phòng
             local servers = data.data
             for i = #servers, 2, -1 do
                 local j = math.random(i)
@@ -125,47 +126,29 @@ local function ServerHop()
             end
             
             for _, v in ipairs(servers) do 
-                -- Tìm server có từ 2 người trở lên (tránh server chết) và nhỏ hơn số Max Hop
                 if type(v) == "table" and tonumber(v.playing) and v.playing >= 2 and v.playing <= (tonumber(Config["Max Players to Hop"]) or 5) and v.id ~= game.JobId then 
                     tps:TeleportToPlaceInstance(game.PlaceId, v.id, lp)
-                    task.wait(5) -- Đợi Teleport kích hoạt
+                    task.wait(5)
                 end 
             end
         end
     end)
     
     task.wait(3)
-    isHopping = false -- Nếu lỗi thì mở khóa cho Hop lại
+    isHopping = false 
 end
 
--- 🔵 6. UI GLASS DESIGN (WITH GLOW EFFECT & NEW LAYOUT)
+-- 🔵 6. UI GLASS DESIGN (GLOW EFFECT)
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
 main.Size = UDim2.new(0, 0, 0, 0); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.3; main.BorderSizePixel = 0
-main.ClipsDescendants = false -- Cho phép phần mờ (Glow) tràn ra ngoài khung
+main.ClipsDescendants = false 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 
--- Hiệu ứng vạch đỏ viền mảnh xung quanh bảng UI
-local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(255, 50, 50)
-stroke.Thickness = 1.5
-stroke.Transparency = 0.2
+local stroke = Instance.new("UIStroke", main); stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Thickness = 1.5; stroke.Transparency = 0.2
+local glow = Instance.new("ImageLabel", main); glow.Name = "GlowEffect"; glow.BackgroundTransparency = 1; glow.Position = UDim2.new(0, -30, 0, -30); glow.Size = UDim2.new(1, 60, 1, 60); glow.ZIndex = 0; glow.Image = "rbxassetid://5028857084"; glow.ImageColor3 = Color3.fromRGB(255, 200, 100); glow.ImageTransparency = 0.4; glow.ScaleType = Enum.ScaleType.Slice; glow.SliceCenter = Rect.new(24, 24, 276, 276)
 
--- HIỆU ỨNG MỜ TỎA RA XUNG QUANH (GLOW BACKGROUND)
-local glow = Instance.new("ImageLabel", main)
-glow.Name = "GlowEffect"
-glow.BackgroundTransparency = 1
-glow.Position = UDim2.new(0, -30, 0, -30) -- Tràn ra ngoài 30 pixel mỗi góc
-glow.Size = UDim2.new(1, 60, 1, 60)
-glow.ZIndex = 0
-glow.Image = "rbxassetid://5028857084" -- Hình ảnh Bóng mờ mặc định của Roblox
-glow.ImageColor3 = Color3.fromRGB(255, 200, 100) -- Chỉnh sang màu Vàng nhạt tỏa ra như hình
-glow.ImageTransparency = 0.4
-glow.ScaleType = Enum.ScaleType.Slice
-glow.SliceCenter = Rect.new(24, 24, 276, 276)
-
--- Các dòng thông số (ZIndex = 2 để nổi lên trên Glow)
 local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Position = UDim2.new(0, 0, 0, 5); title.Text = "PLEPORM HUB - TRACK STATS"; title.TextColor3 = Color3.fromRGB(255, 255, 255); title.TextSize = 22; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1; title.ZIndex = 2
 local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 45); timeLbl.TextSize = 18; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1; timeLbl.ZIndex = 2
 local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 75); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(255, 215, 0); goldLbl.BackgroundTransparency = 1; goldLbl.ZIndex = 2
@@ -173,13 +156,12 @@ local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0,
 local playersLbl = Instance.new("TextLabel", main); playersLbl.Size = UDim2.new(1, 0, 0, 25); playersLbl.Position = UDim2.new(0, 0, 0, 135); playersLbl.TextSize = 18; playersLbl.Font = Enum.Font.Arcade; playersLbl.TextColor3 = Color3.fromRGB(150, 200, 255); playersLbl.BackgroundTransparency = 1; playersLbl.ZIndex = 2
 local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 40); statusLbl.Position = UDim2.new(0, 0, 0, 165); statusLbl.TextSize = 16; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1; statusLbl.ZIndex = 2; statusLbl.TextWrapped = true
 
--- Hiệu ứng Mở Track Stat cực ngầu (mở rộng về size 320x210)
 ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 215)}):Play()
 
--- 🟡 7. SUPER TURBO FARM (GUARANTEED COLLECTION)
+-- 🟡 7. SUPER TURBO FARM (GUARANTEED SERVER VALIDATION & ANTI-CHEAT BYPASS)
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.05) 
+        task.wait() 
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isHopping then
             pcall(function()
@@ -187,7 +169,7 @@ task.spawn(function()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                -- 1. XỬ LÝ KHI ĐẦY TÚI (40 Vàng)
+                -- Check 40 Vàng
                 if currentCoins >= 40 then
                     CurrentAction = "BAG FULL! WAITING / HOPPING..."
                     if tick() - lastCoinTick > 10 then 
@@ -198,45 +180,56 @@ task.spawn(function()
                     return
                 end
 
-                -- 2. CHỐNG KẸT
+                -- Chống kẹt
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
 
-                -- 3. QUÉT TRỰC TIẾP TÌM VÀNG (Bỏ vụ check Map Normal đi)
                 local foundCoin = false
-                local searchArea = workspace:FindFirstChild("Normal") or workspace
+                local normalMap = workspace:FindFirstChild("Normal")
                 
-                for _, v in ipairs(searchArea:GetDescendants()) do
-                    -- MM2 Vàng luôn có tên Coin_Server hoặc Coin và chứa TouchTransmitter
-                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") and v:FindFirstChild("TouchTransmitter") and v.Transparency < 1 and not v:FindFirstChild("PleporM_Collected") then
-                        foundCoin = true
-                        CurrentAction = "COLLECTING COINS..."
-                        
-                        -- Bay tới và chạm
-                        root.CFrame = v.CFrame
-                        task.wait(0.02)
-                        firetouchinterest(root, v, 0)
-                        task.wait(0.01)
-                        firetouchinterest(root, v, 1)
-                        
-                        -- Đánh dấu & quăng xuống gầm để bỏ qua luôn
-                        local tag = Instance.new("BoolValue", v)
-                        tag.Name = "PleporM_Collected"
-                        v.Transparency = 1 
-                        v.CFrame = CFrame.new(0, -9999, 0)
-                        
-                        currentCoins = currentCoins + 1
-                        lastCoinTick = tick()
-                        
-                        task.wait(Config["Farm Speed"] or 0)
-                        break 
+                if normalMap then
+                    for _, v in ipairs(normalMap:GetDescendants()) do
+                        if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") and v.Transparency == 0 then
+                            foundCoin = true
+                            CurrentAction = "COLLECTING COINS..."
+                            
+                            local timeout = tick()
+                            
+                            -- VÒNG LẶP ÉP SERVER NHẬN LỆNH (Đảm bảo nhặt được mới đi tiếp)
+                            while v and v.Parent and v.Transparency == 0 do
+                                if tick() - timeout > 1.5 then break end -- Giới hạn 1.5s để không bị kẹt vĩnh viễn
+                                
+                                if char and root and root.Parent then
+                                    root.CFrame = v.CFrame
+                                    root.Velocity = Vector3.new(0, 0, 0) -- Hãm phanh chống AC
+                                    
+                                    if firetouchinterest then
+                                        firetouchinterest(root, v, 0)
+                                        firetouchinterest(root, v, 1)
+                                    end
+                                end
+                                rs.Heartbeat:Wait() -- Nhồi lệnh nhanh nhất theo FPS
+                            end
+                            
+                            -- Kiểm tra lại: Server đã làm mờ/xóa vàng chưa?
+                            if not v or not v.Parent or v.Transparency > 0 then
+                                currentCoins = currentCoins + 1
+                                lastCoinTick = tick()
+                            else
+                                -- Nếu quá 1.5s mà Server không nhả -> Vàng lỗi, tự giấu đi
+                                v.Name = "PleporM_Bugged"
+                                v.Transparency = 1 
+                                v.CFrame = CFrame.new(0, -9999, 0)
+                            end
+                            
+                            task.wait(Config["Farm Speed"] or 0)
+                            break -- Xong cục này mới qua cục khác
+                        end
                     end
                 end
                 
-                -- 4. XỬ LÝ KHI KHÔNG THẤY VÀNG (Hoặc ván kết thúc)
+                -- Reset nếu ván đấu kết thúc (Map Normal biến mất)
                 if not foundCoin then 
                     CurrentAction = "WAITING FOR MATCH / COINS..."
-                    -- Nếu đang chờ mà thư mục Normal trống không -> Chứng tỏ đã về lại sảnh (Lobby), tự reset túi vàng.
-                    local normalMap = workspace:FindFirstChild("Normal")
                     if not normalMap or #normalMap:GetChildren() == 0 then
                         currentCoins = 0
                     end
@@ -246,7 +239,7 @@ task.spawn(function()
     end
 end)
 
--- ⚪ 8. INITIALIZE UI LOOP (UPDATE TRACK STATS)
+-- ⚪ 8. INITIALIZE UI LOOP
 OptimizePerformance()
 task.spawn(function()
     while sg.Parent do
@@ -271,14 +264,12 @@ task.spawn(function()
             
             goldLbl.Text = "TOTAL GOLD: $" .. gold
             bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
-            
-            -- TRACK THÊM SỐ NGƯỜI CHƠI TRONG SERVER
             playersLbl.Text = "PLAYERS: " .. tostring(#game.Players:GetPlayers()) .. "/12"
             
             statusLbl.Text = "ACTION:\n" .. CurrentAction
             if CurrentAction:find("COLLECTING") then statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
             elseif CurrentAction:find("WAITING") then statusLbl.TextColor3 = Color3.fromRGB(255, 200, 100)
-            elseif CurrentAction:find("RESETTING") or CurrentAction:find("HOPPING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+            elseif CurrentAction:find("FULL") or CurrentAction:find("HOPPING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
             else statusLbl.TextColor3 = Color3.fromRGB(255, 255, 255) end
         end)
     end
