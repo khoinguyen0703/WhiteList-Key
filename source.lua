@@ -105,17 +105,37 @@ if lp.Character then BypassAC(lp.Character) end
 
 -- 🔵 5. AUTO HOP TARGET SERVER
 local function ServerHop()
+    if isHopping then return end
+    isHopping = true
     CurrentAction = "HOPPING SERVER..."
+    print("🚀 [LOG] Đang tìm Server mới...")
+    
     pcall(function()
         local Config = getgenv().Plepor_Config
-        local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
-        table.sort(res, function(a, b) return a.playing < b.playing end)
-        for _, v in pairs(res) do 
-            if v.playing > 2 and v.playing <= (tonumber(Config["Max Players to Hop"]) or 5) and v.id ~= game.JobId then 
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id); return
-            end 
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local req = game:HttpGet(url)
+        local data = http:JSONDecode(req)
+        
+        if data and data.data then
+            -- Xáo trộn server để tránh nhiều người nhảy vào cùng 1 phòng
+            local servers = data.data
+            for i = #servers, 2, -1 do
+                local j = math.random(i)
+                servers[i], servers[j] = servers[j], servers[i]
+            end
+            
+            for _, v in ipairs(servers) do 
+                -- Tìm server có từ 2 người trở lên (tránh server chết) và nhỏ hơn số Max Hop
+                if type(v) == "table" and tonumber(v.playing) and v.playing >= 2 and v.playing <= (tonumber(Config["Max Players to Hop"]) or 5) and v.id ~= game.JobId then 
+                    tps:TeleportToPlaceInstance(game.PlaceId, v.id, lp)
+                    task.wait(5) -- Đợi Teleport kích hoạt
+                end 
+            end
         end
     end)
+    
+    task.wait(3)
+    isHopping = false -- Nếu lỗi thì mở khóa cho Hop lại
 end
 
 -- 🔵 6. UI GLASS DESIGN (WITH GLOW EFFECT & NEW LAYOUT)
