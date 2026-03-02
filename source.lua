@@ -1,4 +1,4 @@
--- [[ PLEPORM HUB V30 - UI + FARM + OPTIMIZE ]]
+-- [[ PLEPORM HUB V32 - MINECRAFT PIXEL FONT EDITION ]]
 local request = (syn and syn.request) or (http and http.request) or http_request or (Fluxus and Fluxus.request) or request
 
 -- 1. HỆ THỐNG WHITELIST
@@ -18,123 +18,117 @@ local function Verify()
 end
 
 if not Verify() then
-    game.Players.LocalPlayer:Kick("❌ WRONG KEY! Liên hệ PleporM Hub.")
+    game.Players.LocalPlayer:Kick("❌ SAI KEY! Vui lòng kiểm tra lại.")
     return
 end
 
--- 2. BIẾN HỆ THỐNG & CẤU HÌNH
-local Config = getgenv().Plepor_Config
+-- 2. GIAO DIỆN PLEPORM HUB (PHONG CÁCH PIXEL MINECRAFT)
 local lp = game.Players.LocalPlayer
-local rs = game:GetService("RunService")
-local HTTP = game:GetService("HttpService")
-
--- 3. TẠO GIAO DIỆN (UI) GIỐNG FENNIR HUB MẪU
 local function CreateUI()
+    if lp.PlayerGui:FindFirstChild("PlepormHub_UI") then lp.PlayerGui.PlepormHub_UI:Destroy() end
+    
     local sg = Instance.new("ScreenGui", lp.PlayerGui)
     sg.Name = "PlepormHub_UI"
 
     local main = Instance.new("Frame", sg)
-    main.Size = UDim2.new(0, 350, 0, 200)
-    main.Position = UDim2.new(0.5, -175, 0.4, -100)
-    main.BackgroundTransparency = 1 -- Trong suốt như ảnh mẫu
+    main.Size = UDim2.new(0, 450, 0, 250)
+    main.Position = UDim2.new(0.5, -225, 0.35, -125)
+    main.BackgroundTransparency = 1 
+
+    -- Font Arcade trong Roblox có nét Pixel rất giống Minecraft
+    local PixelFont = Enum.Font.Arcade 
 
     local title = Instance.new("TextLabel", main)
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Text = "Pleporm Hub"
-    title.TextColor3 = Color3.fromRGB(255, 60, 60) -- Màu đỏ Fennir
-    title.TextSize = 35
-    title.Font = Enum.Font.SourceSansBold
+    title.Size = UDim2.new(1, 0, 0, 60)
+    title.Text = "PLEPORM HUB"
+    title.TextColor3 = Color3.fromRGB(255, 60, 60)
+    title.TextSize = 45
+    title.Font = PixelFont
+    title.TextStrokeTransparency = 0 -- Đậm nét pixel
     title.BackgroundTransparency = 1
 
     local status = Instance.new("TextLabel", main)
     status.Size = UDim2.new(1, 0, 0, 30)
-    status.Position = UDim2.new(0, 0, 0, 40)
-    status.Text = "Status: Loading"
-    status.TextColor3 = Color3.fromRGB(255, 200, 100) -- Màu cam vàng
+    status.Position = UDim2.new(0, 0, 0, 65)
+    status.Text = "> Status: Running"
+    status.TextColor3 = Color3.fromRGB(255, 200, 100)
     status.TextSize = 22
-    status.Font = Enum.Font.SourceSansSemibold
+    status.Font = PixelFont
     status.BackgroundTransparency = 1
 
     local timer = Instance.new("TextLabel", main)
     timer.Size = UDim2.new(1, 0, 0, 25)
-    timer.Position = UDim2.new(0, 0, 0, 70)
-    timer.Text = "0 Hours, 0 Minutes, 0 Seconds (v3.0)"
-    timer.TextColor3 = Color3.fromRGB(200, 200, 200)
+    timer.Position = UDim2.new(0, 0, 0, 100)
+    timer.Text = "Time: 0H 0M 0S (v3.2)"
+    timer.TextColor3 = Color3.fromRGB(255, 255, 255)
     timer.TextSize = 18
+    timer.Font = PixelFont
     timer.BackgroundTransparency = 1
 
     local stats = Instance.new("TextLabel", main)
-    stats.Size = UDim2.new(1, 0, 0, 30)
-    stats.Position = UDim2.new(0, 0, 0, 110)
-    stats.Text = "Level: -- | Coins Bag: $0"
-    stats.TextColor3 = Color3.fromRGB(150, 255, 200) -- Màu xanh mint
-    stats.TextSize = 24
-    stats.Font = Enum.Font.SourceSansBold
+    stats.Size = UDim2.new(1, 0, 0, 40)
+    stats.Position = UDim2.new(0, 0, 0, 140)
+    stats.Text = "LVL: -- | GOLD: $0"
+    stats.TextColor3 = Color3.fromRGB(85, 255, 85) -- Màu xanh lá Minecraft
+    stats.TextSize = 25
+    stats.Font = PixelFont
+    stats.TextStrokeTransparency = 0
     stats.BackgroundTransparency = 1
 
-    -- Cập nhật thời gian & Status
-    local startTime = tick()
+    -- Cập nhật thông số Real-time
+    local start = tick()
     task.spawn(function()
         while task.wait(1) do
-            status.Text = "Status: Running Smoothly"
-            local diff = tick() - startTime
-            local h = math.floor(diff/3600)
-            local m = math.floor((diff%3600)/60)
-            local s = math.floor(diff%60)
-            timer.Text = string.format("%d Hours, %d Minutes, %d Seconds (v3.0)", h, m, s)
-            
-            -- Cập nhật Level/Vàng (Tùy theo game bạn chơi)
+            local d = tick() - start
+            timer.Text = string.format("Time: %dH %dM %dS (v3.2)", math.floor(d/3600), math.floor((d%3600)/60), math.floor(d%60))
             pcall(function()
                 local lv = lp.leaderstats.Level.Value or 0
                 local co = lp.leaderstats.Coins.Value or 0
-                stats.Text = "Level: "..lv.." | Coins Bag: $"..co
+                stats.Text = "LVL: "..lv.." | GOLD: $"..co
             end)
         end
     end)
 end
 
--- 4. CÁC TÍNH NĂNG CẢI TIẾN (FARM, GHOST, DELETE MAP)
+-- 3. LOGIC HỆ THỐNG (FARM + GHOST + DELETE MAP)
 task.spawn(function()
     if not game:IsLoaded() then game.Loaded:Wait() end
     CreateUI()
-
-    -- Delete Map
+    
+    local Config = getgenv().Plepor_Config
     if Config["Delete Map"] then
         for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") and not v.Name:find("Coin") then
+            if v:IsA("BasePart") and not v.Name:find("Coin") and v.Name ~= "Baseplate" then
                 v.Transparency = 1
                 v.CanCollide = false
             end
         end
     end
 
-    -- Ghost Character
-    rs.RenderStepped:Connect(function()
+    game:GetService("RunService").Stepped:Connect(function()
         if Config["Ghost Character"] and lp.Character then
             for _, v in pairs(lp.Character:GetDescendants()) do
                 if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-                    v.Transparency = 1
                     v.CanCollide = false
+                    v.Transparency = 0.5
                 end
             end
         end
     end)
 end)
 
--- 5. TURBO FARM & WEBHOOK
+-- 4. TURBO FARM
 task.spawn(function()
-    local gold_total = 0
     while task.wait() do
-        if Config["Turbo Farm"] then
+        local Config = getgenv().Plepor_Config
+        if Config["Turbo Farm"] and lp.Character then
             pcall(function()
                 local root = lp.Character.HumanoidRootPart
                 for _, v in pairs(workspace:GetDescendants()) do
-                    if v.Name:find("Coin") and v:IsA("BasePart") then
+                    if (v.Name:find("Coin") or v.Name:find("Gold")) and v:IsA("BasePart") then
                         root.CFrame = v.CFrame
                         firetouchinterest(root, v, 0)
                         firetouchinterest(root, v, 1)
-                        v:Destroy()
-                        gold_total = gold_total + 1
                     end
                 end
             end)
@@ -142,4 +136,4 @@ task.spawn(function()
     end
 end)
 
-print("✅ Pleporm Hub V30 Loaded!")
+print("✅ PleporM Hub V32 (Pixel Edition) Loaded!")
