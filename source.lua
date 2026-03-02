@@ -114,25 +114,32 @@ local function ServerHop()
     
     pcall(function()
         local Config = getgenv().Plepor_Config
+        local maxP = tonumber(Config["Max Players to Hop"]) or 5
         local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
         local req = game:HttpGet(url)
         local data = http:JSONDecode(req)
         
         if data and data.data then
             local servers = data.data
+            -- Xáo trộn danh sách server để tránh join trùng
             for i = #servers, 2, -1 do
                 local j = math.random(i)
                 servers[i], servers[j] = servers[j], servers[i]
             end
             
             for _, v in ipairs(servers) do 
-                if type(v) == "table" and tonumber(v.playing) and v.playing >= 2 and v.playing <= (tonumber(Config["Max Players to Hop"]) or 5) and v.id ~= game.JobId then 
+                -- ĐIỀU KIỆN TÌM SERVER: Lớn hơn 2 người VÀ nhỏ hơn/bằng giới hạn Max Players
+                if type(v) == "table" and tonumber(v.playing) and v.playing > 2 and v.playing <= maxP and v.id ~= game.JobId then 
                     tps:TeleportToPlaceInstance(game.PlaceId, v.id, lp)
                     task.wait(5)
                 end 
             end
         end
     end)
+    
+    task.wait(3)
+    isHopping = false 
+end
     
     task.wait(3)
     isHopping = false 
@@ -167,7 +174,7 @@ ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.O
 -- 🟡 7. SUPER TURBO FARM (GUARANTEED SERVER VALIDATION & ANTI-CHEAT BYPASS)
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait() 
+        task.wait(0.1) 
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isHopping then
             pcall(function()
@@ -175,68 +182,61 @@ task.spawn(function()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
+                -- KIỂM TRA ĐIỀU KIỆN HOP (CHỈ HOP KHI SỐ NGƯỜI VƯỢT QUÁ GIỚI HẠN)
+                local maxPlayers = tonumber(Config["Max Players to Hop"]) or 5
+                if Config["Auto Hop"] and #game.Players:GetPlayers() > maxPlayers then
+                    ServerHop()
+                    return
+                end
+
                 -- Check 40 Vàng
                 if currentCoins >= 40 then
-                    CurrentAction = "BAG FULL! WAITING / HOPPING..."
+                    CurrentAction = "BAG FULL! WAITING FOR MATCH END..."
                     if tick() - lastCoinTick > 10 then 
                         SendWebhook(currentCoins)
                         lastCoinTick = tick() + 9999 
                     end
-                    if Config["Auto Hop"] then ServerHop() end
                     return
                 end
 
-                -- Chống kẹt
-                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
-
                 local foundCoin = false
-                local normalMap = workspace:FindFirstChild("Normal")
                 
-                if normalMap then
-                    for _, v in ipairs(normalMap:GetDescendants()) do
-                        if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") and v.Transparency == 0 then
-                            foundCoin = true
-                            CurrentAction = "COLLECTING COINS..."
-                            
-                            local timeout = tick()
-                            
-                            -- VÒNG LẶP ÉP SERVER NHẬN LỆNH (Đảm bảo nhặt được mới đi tiếp)
-                            while v and v.Parent and v.Transparency == 0 do
-                                if tick() - timeout > 1.5 then break end -- Giới hạn 1.5s để không bị kẹt vĩnh viễn
-                                
-                                if char and root and root.Parent then
-                                    root.CFrame = v.CFrame
-                                    root.Velocity = Vector3.new(0, 0, 0) -- Hãm phanh chống AC
-                                    
-                                    if firetouchinterest then
-                                        firetouchinterest(root, v, 0)
-                                        firetouchinterest(root, v, 1)
-                                    end
-                                end
-                                rs.Heartbeat:Wait() -- Nhồi lệnh nhanh nhất theo FPS
-                            end
-                            
-                            -- Kiểm tra lại: Server đã làm mờ/xóa vàng chưa?
-                            if not v or not v.Parent or v.Transparency > 0 then
-                                currentCoins = currentCoins + 1
-                                lastCoinTick = tick()
-                            else
-                                -- Nếu quá 1.5s mà Server không nhả -> Vàng lỗi, tự giấu đi
-                                v.Name = "PleporM_Bugged"
-                                v.Transparency = 1 
-                                v.CFrame = CFrame.new(0, -9999, 0)
-                            end
-                            
-                            task.wait(Config["Farm Speed"] or 0)
-                            break -- Xong cục này mới qua cục khác
+                -- QUÉT TOÀN MAP (Không phụ thuộc thư mục Normal, không check Transparency)
+                for _, v in ipairs(workspace:GetDescendants()) do
+                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") then
+                        foundCoin = true
+                        CurrentAction = "COLLECTING COINS..."
+                        
+                        -- Bay thẳng tới và hãm phanh lại để chống Anti-Cheat
+                        root.CFrame = v.CFrame
+                        root.Velocity = Vector3.new(0, 0, 0)
+                        
+                        -- Kích hoạt chạm
+                        if firetouchinterest then
+                            firetouchinterest(root, v, 0)
+                            task.wait(0.05)
+                            firetouchinterest(root, v, 1)
                         end
+                        
+                        task.wait(0.1) -- Đợi server load nhịp
+                        
+                        -- Đổi tên và giấu đi để quét cục khác, tránh kẹt 1 chỗ
+                        v.Name = "PleporM_Done"
+                        v.CFrame = CFrame.new(0, -9999, 0)
+                        
+                        currentCoins = currentCoins + 1
+                        lastCoinTick = tick()
+                        
+                        task.wait(Config["Farm Speed"] or 0)
+                        break -- Lụm xong 1 cục, ngắt vòng lặp để lụm cục tiếp theo
                     end
                 end
                 
-                -- Reset nếu ván đấu kết thúc (Map Normal biến mất)
+                -- Xử lý reset túi vàng khi ván đấu kết thúc
                 if not foundCoin then 
                     CurrentAction = "WAITING FOR MATCH / COINS..."
-                    if not normalMap or #normalMap:GetChildren() == 0 then
+                    -- Nếu hơn 15 giây không có cục vàng nào trong map -> Hết ván, reset túi vàng
+                    if tick() - lastCoinTick > 15 then
                         currentCoins = 0
                     end
                 end
