@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V101 - COIN SAFEGUARD ]]
--- [ FIXED: DELETE MAP BUG DESTROYING COINS | ADDED: COIN PROTECTION ]
+-- [[ PLEPORM HUB V102 - PIXEL UI EDITION ]]
+-- [ ADDED: 8-BIT/MINECRAFT PIXEL FONT FOR ALL STATS ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -47,7 +47,6 @@ getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
 -- 🛠️ 3. OPTIMIZE (SAFE DELETE MAP & PLAYERS)
--- Hàm bảo vệ Vàng tuyệt đối khỏi Delete Map
 local function isProtectedFromDelete(inst)
     if not inst then return true end
     local name = inst.Name:lower()
@@ -65,7 +64,6 @@ local function OptimizePerformance()
         while getgenv().Plepor_Executed do
             if Config["Delete Map"] then
                 for _, v in pairs(workspace:GetDescendants()) do
-                    -- Chừa lại vàng và nhân vật
                     if not isProtectedFromDelete(v) then
                         if v:IsA("BasePart") and not (v.Parent and v.Parent:FindFirstChild("Humanoid")) then
                             v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
@@ -125,7 +123,7 @@ local function ServerHop()
     end)
 end
 
--- 🔵 5. UI GLASS DESIGN
+-- 🔵 5. UI GLASS DESIGN (FONT PIXEL - ARCADE)
 local blur = Instance.new("BlurEffect", lighting); blur.Name = "Pleporm_Blur"; blur.Size = 18
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
@@ -133,15 +131,15 @@ main.Size = UDim2.new(0, 320, 0, 190); main.Position = UDim2.new(0.5, 0, 0.5, 0)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 
-local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V101"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V102"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 25; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1
 
-local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 35); timeLbl.TextSize = 13; timeLbl.Font = Enum.Font.GothamMedium; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1
+local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 35); timeLbl.TextSize = 16; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1
 
-local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 60); goldLbl.TextSize = 18; goldLbl.Font = Enum.Font.GothamSemibold; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
+local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 60); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
 
-local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 90); bagLbl.TextSize = 18; bagLbl.Font = Enum.Font.GothamSemibold; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
+local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 90); bagLbl.TextSize = 22; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
 
-local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140); statusLbl.TextSize = 12; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
+local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140); statusLbl.TextSize = 14; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1
 
 -- 🟡 6. FARM ENGINE & STATUS UPDATER
 local currentCoins, isResetting = 0, false
@@ -189,7 +187,6 @@ task.spawn(function()
                     if folder and not foundCoin then
                         for _, v in pairs(folder:GetDescendants()) do
                             if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                                -- Nới lỏng kiểm tra Transparency phòng hờ Delete Map ảnh hưởng nhẹ
                                 if v.Parent and v.Transparency < 0.9 then
                                     foundCoin = true
                                     CurrentAction = "COLLECTING COINS..."
@@ -231,7 +228,7 @@ task.spawn(function()
             local hours = math.floor(elapsed / 3600)
             local mins = math.floor((elapsed % 3600) / 60)
             local secs = math.floor(elapsed % 60)
-            timeLbl.Text = string.format("🕒 UPTIME: %02d:%02d:%02d", hours, mins, secs)
+            timeLbl.Text = string.format("UPTIME: %02d:%02d:%02d", hours, mins, secs) -- Bỏ icon đồng hồ vì font Arcade không hỗ trợ emoji
 
             local sb = pgui:FindFirstChild("Scoreboard", true)
             local gold = "0"
@@ -246,7 +243,7 @@ task.spawn(function()
             goldLbl.Text = "TOTAL GOLD: $" .. gold
             bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
             
-            statusLbl.Text = "● STATUS: " .. CurrentAction
+            statusLbl.Text = "STATUS: " .. CurrentAction -- Bỏ icon chấm tròn
             if CurrentAction:find("COLLECTING") then
                 statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
             elseif CurrentAction:find("WAITING") then
