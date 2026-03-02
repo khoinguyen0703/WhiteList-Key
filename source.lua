@@ -1,7 +1,11 @@
--- [[ PLEPORM HUB V32 - MINECRAFT PIXEL FONT EDITION ]]
+-- [[ PLEPORM HUB V33 - THE FINAL COMPLETE SCRIPT ]]
+-- 0. FIX LỖI REQUEST (DÒNG 13) & KHỞI TẠO HÀM
 local request = (syn and syn.request) or (http and http.request) or http_request or (Fluxus and Fluxus.request) or request
+local lp = game.Players.LocalPlayer
+local rs = game:GetService("RunService")
+local httpService = game:GetService("HttpService")
 
--- 1. HỆ THỐNG WHITELIST
+-- 1. HỆ THỐNG WHITELIST (KIỂM TRA KEY TỪ GITHUB)
 local UserKey = _G.script_key or script_key
 local WhitelistURL = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt?t=" .. tick()
 
@@ -10,6 +14,7 @@ local function Verify()
     if success then
         local function clean(str) return tostring(str):gsub("%s+", ""):gsub("%c+", "") end
         local cleanUserKey = clean(UserKey)
+        if cleanUserKey == "" then return false end
         for line in content:gmatch("[^\r\n]+") do
             if clean(line) == cleanUserKey then return true end
         end
@@ -18,69 +23,49 @@ local function Verify()
 end
 
 if not Verify() then
-    game.Players.LocalPlayer:Kick("❌ SAI KEY! Vui lòng kiểm tra lại.")
+    lp:Kick("❌ SAI KEY HOẶC KEY HẾT HẠN! Vui lòng liên hệ PleporM Hub.")
     return
 end
 
--- 2. GIAO DIỆN PLEPORM HUB (PHONG CÁCH PIXEL MINECRAFT)
-local lp = game.Players.LocalPlayer
+-- 2. GIAO DIỆN THEO DÕI (PIXEL FONT - MINECRAFT STYLE)
 local function CreateUI()
     if lp.PlayerGui:FindFirstChild("PlepormHub_UI") then lp.PlayerGui.PlepormHub_UI:Destroy() end
     
     local sg = Instance.new("ScreenGui", lp.PlayerGui)
     sg.Name = "PlepormHub_UI"
+    sg.ResetOnSpawn = false
 
     local main = Instance.new("Frame", sg)
     main.Size = UDim2.new(0, 450, 0, 250)
     main.Position = UDim2.new(0.5, -225, 0.35, -125)
     main.BackgroundTransparency = 1 
 
-    -- Font Arcade trong Roblox có nét Pixel rất giống Minecraft
-    local PixelFont = Enum.Font.Arcade 
+    local PixelFont = Enum.Font.Arcade -- Font chuẩn Pixel Minecraft
 
-    local title = Instance.new("TextLabel", main)
-    title.Size = UDim2.new(1, 0, 0, 60)
-    title.Text = "PLEPORM HUB"
-    title.TextColor3 = Color3.fromRGB(255, 60, 60)
-    title.TextSize = 45
-    title.Font = PixelFont
-    title.TextStrokeTransparency = 0 -- Đậm nét pixel
-    title.BackgroundTransparency = 1
+    local function CreateLabel(text, pos, color, size)
+        local lbl = Instance.new("TextLabel", main)
+        lbl.Size = UDim2.new(1, 0, 0, 40)
+        lbl.Position = pos
+        lbl.Text = text
+        lbl.TextColor3 = color
+        lbl.TextSize = size
+        lbl.Font = PixelFont
+        lbl.TextStrokeTransparency = 0 -- Viền đen đậm phong cách Pixel
+        lbl.BackgroundTransparency = 1
+        return lbl
+    end
 
-    local status = Instance.new("TextLabel", main)
-    status.Size = UDim2.new(1, 0, 0, 30)
-    status.Position = UDim2.new(0, 0, 0, 65)
-    status.Text = "> Status: Running"
-    status.TextColor3 = Color3.fromRGB(255, 200, 100)
-    status.TextSize = 22
-    status.Font = PixelFont
-    status.BackgroundTransparency = 1
+    local title = CreateLabel("PLEPORM HUB", UDim2.new(0,0,0,0), Color3.fromRGB(255, 60, 60), 45)
+    local status = CreateLabel("> Status: Running", UDim2.new(0,0,0,65), Color3.fromRGB(255, 200, 100), 22)
+    local timer = CreateLabel("Time: 0H 0M 0S (v3.3)", UDim2.new(0,0,0,100), Color3.fromRGB(255, 255, 255), 18)
+    local stats = CreateLabel("LVL: -- | GOLD: $0", UDim2.new(0,0,0,140), Color3.fromRGB(85, 255, 85), 25)
 
-    local timer = Instance.new("TextLabel", main)
-    timer.Size = UDim2.new(1, 0, 0, 25)
-    timer.Position = UDim2.new(0, 0, 0, 100)
-    timer.Text = "Time: 0H 0M 0S (v3.2)"
-    timer.TextColor3 = Color3.fromRGB(255, 255, 255)
-    timer.TextSize = 18
-    timer.Font = PixelFont
-    timer.BackgroundTransparency = 1
-
-    local stats = Instance.new("TextLabel", main)
-    stats.Size = UDim2.new(1, 0, 0, 40)
-    stats.Position = UDim2.new(0, 0, 0, 140)
-    stats.Text = "LVL: -- | GOLD: $0"
-    stats.TextColor3 = Color3.fromRGB(85, 255, 85) -- Màu xanh lá Minecraft
-    stats.TextSize = 25
-    stats.Font = PixelFont
-    stats.TextStrokeTransparency = 0
-    stats.BackgroundTransparency = 1
-
-    -- Cập nhật thông số Real-time
-    local start = tick()
+    -- Cập nhật dữ liệu thời gian và Leaderstats
+    local startTick = tick()
     task.spawn(function()
         while task.wait(1) do
-            local d = tick() - start
-            timer.Text = string.format("Time: %dH %dM %dS (v3.2)", math.floor(d/3600), math.floor((d%3600)/60), math.floor(d%60))
+            local d = tick() - startTick
+            timer.Text = string.format("Time: %dH %dM %dS (v3.3)", math.floor(d/3600), math.floor((d%3600)/60), math.floor(d%60))
             pcall(function()
                 local lv = lp.leaderstats.Level.Value or 0
                 local co = lp.leaderstats.Coins.Value or 0
@@ -90,22 +75,27 @@ local function CreateUI()
     end)
 end
 
--- 3. LOGIC HỆ THỐNG (FARM + GHOST + DELETE MAP)
+-- 3. CÁC TÍNH NĂNG CẢI TIẾN (FARM, GHOST, DELETE MAP)
+local Config = getgenv().Plepor_Config or {}
+
 task.spawn(function()
     if not game:IsLoaded() then game.Loaded:Wait() end
     CreateUI()
-    
-    local Config = getgenv().Plepor_Config
+
+    -- Delete Map: Làm trong suốt map để giảm lag
     if Config["Delete Map"] then
         for _, v in pairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") and not v.Name:find("Coin") and v.Name ~= "Baseplate" then
                 v.Transparency = 1
                 v.CanCollide = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v:Destroy()
             end
         end
     end
 
-    game:GetService("RunService").Stepped:Connect(function()
+    -- Ghost Character: Nhân vật tàng hình (Tránh Report)
+    rs.Stepped:Connect(function()
         if Config["Ghost Character"] and lp.Character then
             for _, v in pairs(lp.Character:GetDescendants()) do
                 if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
@@ -117,18 +107,18 @@ task.spawn(function()
     end)
 end)
 
--- 4. TURBO FARM
+-- 4. TURBO FARM COIN SIÊU TỐC
 task.spawn(function()
     while task.wait() do
-        local Config = getgenv().Plepor_Config
-        if Config["Turbo Farm"] and lp.Character then
+        if Config["Turbo Farm"] and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            local root = lp.Character.HumanoidRootPart
             pcall(function()
-                local root = lp.Character.HumanoidRootPart
                 for _, v in pairs(workspace:GetDescendants()) do
                     if (v.Name:find("Coin") or v.Name:find("Gold")) and v:IsA("BasePart") then
                         root.CFrame = v.CFrame
                         firetouchinterest(root, v, 0)
                         firetouchinterest(root, v, 1)
+                        -- Không wait() ở đây để đạt tốc độ Turbo
                     end
                 end
             end)
@@ -136,4 +126,46 @@ task.spawn(function()
     end
 end)
 
-print("✅ PleporM Hub V32 (Pixel Edition) Loaded!")
+-- 5. WEBHOOK LOGS (FENNIR STYLE)
+local function SendWebhook(goldCount)
+    local url = Config["Webhook Url"]
+    if not url or url == "" or url:find("Link") then return end
+    
+    local data = {
+        ["embeds"] = {{
+            ["title"] = "Webhook Logs\n\nWebhook Report",
+            ["color"] = 0x2b2d31,
+            ["fields"] = {
+                {["name"] = "**Player:**", ["value"] = "||" .. lp.Name .. "||", ["inline"] = false},
+                {["name"] = "**Gold Collected:**", ["value"] = "```" .. (goldCount or 0) .. "```", ["inline"] = false},
+                {["name"] = "**Time:**", ["value"] = "lúc " .. os.date("%H:%M %A, %d/%m/%Y"), ["inline"] = false},
+                {["name"] = "ℹ️ **Notes**", ["value"] = "```Script by PleporM Hub V33.```", ["inline"] = false}
+            },
+            ["footer"] = {["text"] = "PleporM Hub • " .. os.date("%X")},
+            ["thumbnail"] = {["url"] = "https://i.imgur.com/your_image.png"}
+        }}
+    }
+    
+    if request then
+        pcall(function()
+            request({
+                Url = url,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = httpService:JSONEncode(data)
+            })
+        end)
+    end
+end
+
+-- Tự động gửi Webhook mỗi khi nhặt được 1 lượng vàng nhất định
+task.spawn(function()
+    while task.wait(300) do -- Gửi báo cáo mỗi 5 phút
+        pcall(function()
+            local co = lp.leaderstats.Coins.Value or 0
+            SendWebhook(co)
+        end)
+    end
+end)
+
+print("✅ PleporM Hub V33 (Final Edition) Loaded Successfully!")
