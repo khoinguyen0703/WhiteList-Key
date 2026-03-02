@@ -1,4 +1,4 @@
--- [[ 1. KIỂM TRA WHITELIST ]]
+-- [[ 1. HỆ THỐNG KIỂM TRA KEY (WHITELIST) ]]
 local UserKey = _G.script_key or script_key
 local WhitelistURL = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt" 
 
@@ -23,7 +23,7 @@ local lp = game.Players.LocalPlayer
 local RS = game:GetService("RunService")
 local HTTP = game:GetService("HttpService")
 
--- [[ 3. HÀM WEBHOOK PHONG CÁCH FENNIR HUB ]]
+-- [[ 3. HÀM WEBHOOK PHONG CÁCH FENNIR HUB (VIP) ]]
 local function SendWebhook(goldCount)
     local url = Config["Webhook Url"]
     if not url or url == "" or url:find("Link_Webhook") then return end
@@ -31,32 +31,34 @@ local function SendWebhook(goldCount)
     local data = {
         ["embeds"] = {{
             ["title"] = "Webhook Logs\n\nWebhook Report",
-            ["color"] = 0xFF0000, -- Màu đỏ đặc trưng
+            ["color"] = 0xFF0000, 
             ["fields"] = {
                 {["name"] = "Player:", ["value"] = "||" .. lp.Name .. "||", ["inline"] = false},
                 {["name"] = "Gold Collected:", ["value"] = "```" .. (goldCount or 0) .. "```", ["inline"] = false},
                 {["name"] = "Time:", ["value"] = os.date("lúc %H:%M %A, %d/%m/%Y"), ["inline"] = false},
-                {["name"] = "ℹ️ Notes", ["value"] = "```No special items. Running smoothly.```", ["inline"] = false}
+                {["name"] = "ℹ️ Notes", ["value"] = "```Running smoothly on PleporM Hub.```", ["inline"] = false}
             },
             ["footer"] = {
                 ["text"] = "PleporM Hub • discord.gg/PlepormHub • " .. os.date("%X"),
-                ["icon_url"] = "https://i.imgur.com/your_icon.png"
+                ["icon_url"] = "https://i.imgur.com/your_icon.png" -- Fen có thể thay icon hub của mình
             },
-            ["thumbnail"] = {["url"] = "https://i.imgur.com/your_image.png"} -- Thay ảnh con sói vào đây
+            ["thumbnail"] = {["url"] = "https://i.imgur.com/your_image.png"} -- Thay ảnh đại diện hub của fen
         }}
     }
 
     pcall(function()
-        request({
-            Url = url,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HTTP:JSONEncode(data)
-        })
+        if request then
+            request({
+                Url = url,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HTTP:JSONEncode(data)
+            })
+        end
     end)
 end
 
--- [[ 4. LOGIC FARM & TREO MÁY ]]
+-- [[ 4. LOGIC FARM & TỐI ƯU HÓA ]]
 if not game:IsLoaded() then game.Loaded:Wait() end
 repeat task.wait(1) until lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
 
@@ -67,18 +69,22 @@ if Config["Low CPU"] then
     game:GetService("Lighting").GlobalShadows = false
 end
 
--- Vòng lặp Farm Vàng (Cải tiến)
+-- Vòng lặp Farm Vàng
 task.spawn(function()
     local count = 0
-    SendWebhook(0) -- Thông báo bắt đầu
+    SendWebhook(0) -- Báo cáo khi bắt đầu
     
     while Config["Turbo Farm"] do
         task.wait(Config["Farm Speed"] or 0.1)
         pcall(function()
-            local root = lp.Character.HumanoidRootPart
+            local char = lp.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
             local target = nil
             local minDist = math.huge
             
+            -- Tìm vàng gần nhất
             for _, v in pairs(workspace:GetDescendants()) do
                 if v.Name == "Coin_Server" and v:IsA("BasePart") then
                     local d = (root.Position - v.Position).Magnitude
@@ -121,3 +127,5 @@ RS.Stepped:Connect(function()
         end
     end)
 end)
+
+print("PleporM Hub v22 Loaded!")
