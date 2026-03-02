@@ -1,6 +1,6 @@
--- [[ 1. HỆ THỐNG KIỂM TRA KEY - WHITELIST ]]
+-- [[ 1. KIỂM TRA WHITELIST ]]
 local UserKey = _G.script_key or script_key
-local WhitelistURL = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/refs/heads/main/key.txt?token=GHSAT0AAAAAADWYPFEUPCNNOZC54SQUVE2A2NF5TUA" 
+local WhitelistURL = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt" 
 
 local function Verify()
     local success, content = pcall(function() return game:HttpGet(WhitelistURL) end)
@@ -13,70 +13,89 @@ local function Verify()
 end
 
 if not Verify() then
-    game.Players.LocalPlayer:Kick("❌ WRONG KEY! Liên hệ PleporM để mua Key Premium.")
+    game.Players.LocalPlayer:Kick("❌ WRONG KEY! Liên hệ PleporM để mua Key.\nYour Key: " .. tostring(UserKey))
     return
 end
 
--- [[ 2. KHAI BÁO BIẾN & CẤU HÌNH ]]
+-- [[ 2. CẤU HÌNH HỆ THỐNG ]]
 local Config = getgenv().Plepor_Config
 local lp = game.Players.LocalPlayer
 local RS = game:GetService("RunService")
+local HTTP = game:GetService("HttpService")
 
--- [[ 3. HÀM GỬI WEBHOOK (GIAO TIẾP DISCORD) ]]
-local function SendWebhook(msg)
+-- [[ 3. HÀM WEBHOOK PHONG CÁCH FENNIR HUB ]]
+local function SendWebhook(goldCount)
     local url = Config["Webhook Url"]
-    if not url or url == "" or url == "putyourwebhook" then return end
+    if not url or url == "" or url:find("Link_Webhook") then return end
+    
+    local data = {
+        ["embeds"] = {{
+            ["title"] = "Webhook Logs\n\nWebhook Report",
+            ["color"] = 0xFF0000, -- Màu đỏ đặc trưng
+            ["fields"] = {
+                {["name"] = "Player:", ["value"] = "||" .. lp.Name .. "||", ["inline"] = false},
+                {["name"] = "Gold Collected:", ["value"] = "```" .. (goldCount or 0) .. "```", ["inline"] = false},
+                {["name"] = "Time:", ["value"] = os.date("lúc %H:%M %A, %d/%m/%Y"), ["inline"] = false},
+                {["name"] = "ℹ️ Notes", ["value"] = "```No special items. Running smoothly.```", ["inline"] = false}
+            },
+            ["footer"] = {
+                ["text"] = "PleporM Hub • discord.gg/PlepormHub • " .. os.date("%X"),
+                ["icon_url"] = "https://i.imgur.com/your_icon.png"
+            },
+            ["thumbnail"] = {["url"] = "https://i.imgur.com/your_image.png"} -- Thay ảnh con sói vào đây
+        }}
+    }
+
     pcall(function()
         request({
             Url = url,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
-            Body = game:GetService("HttpService"):JSONEncode({
-                ["embeds"] = {{
-                    ["title"] = "🚀 **PLEPORM HUB REPORT**",
-                    ["description"] = msg,
-                    ["color"] = 0x00A2FF,
-                    ["footer"] = {["text"] = "Server: " .. game.JobId}
-                }}
-            })
+            Body = HTTP:JSONEncode(data)
         })
     end)
 end
 
--- [[ 4. LOGIC FARM CHÍNH (V21) ]]
+-- [[ 4. LOGIC FARM & TREO MÁY ]]
 if not game:IsLoaded() then game.Loaded:Wait() end
 repeat task.wait(1) until lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
 
--- Tối ưu máy (FPS, Low CPU)
+-- Tối ưu máy ngay lập tức
 if Config["Low CPU"] then
-    setfpscap(Config["FPS Cap"])
+    setfpscap(Config["FPS Cap"] or 10)
     settings().Rendering.QualityLevel = 1
+    game:GetService("Lighting").GlobalShadows = false
 end
 
--- Farm Vàng
+-- Vòng lặp Farm Vàng (Cải tiến)
 task.spawn(function()
-    SendWebhook("✅ **" .. lp.Name .. "** đã bắt đầu farm!")
     local count = 0
+    SendWebhook(0) -- Thông báo bắt đầu
+    
     while Config["Turbo Farm"] do
-        task.wait(Config["Farm Speed"])
+        task.wait(Config["Farm Speed"] or 0.1)
         pcall(function()
             local root = lp.Character.HumanoidRootPart
             local target = nil
             local minDist = math.huge
+            
             for _, v in pairs(workspace:GetDescendants()) do
                 if v.Name == "Coin_Server" and v:IsA("BasePart") then
                     local d = (root.Position - v.Position).Magnitude
                     if d < minDist then minDist = d target = v end
                 end
             end
+            
             if target then
                 root.CFrame = target.CFrame
                 firetouchinterest(root, target, 0)
                 firetouchinterest(root, target, 1)
                 count = count + 1
             end
+            
+            -- Gửi Webhook mỗi 100 vàng
             if count % 100 == 0 and count > 0 then
-                SendWebhook("💰 Đã nhặt được: " .. count .. " vàng.")
+                SendWebhook(count)
             end
         end)
     end
@@ -89,11 +108,16 @@ lp.Idled:Connect(function()
 end)
 
 RS.Stepped:Connect(function()
-    if lp.Character then
-        for _, v in pairs(lp.Character:GetDescendants()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
+    pcall(function()
+        if lp.Character then
+            for _, v in pairs(lp.Character:GetDescendants()) do
+                if v:IsA("BasePart") then 
+                    v.CanCollide = false 
+                    if Config["Ghost Mode"] and v.Parent.Name ~= lp.Name and not v.Name:find("Coin") then
+                        v.Transparency = 1
+                    end
+                end
+            end
         end
-    end
+    end)
 end)
-
-print("PleporM Hub Loaded Successfully!")
