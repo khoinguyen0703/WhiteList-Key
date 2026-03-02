@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V96 - MEMORY OPTIMIZED ]]
--- [ FIXED: MEMORY LEAKS | MULTI-LAYER COIN SCAN | AUTO-CLEANUP ]
+-- [[ PLEPORM HUB V97 - GHOST OPTIMIZATION ]]
+-- [ FEATURE: INVISIBLE MAP/PLAYERS | PROTECT GOLD | FPS BOOST ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -8,10 +8,9 @@ local rs = game:GetService("RunService")
 local vu = game:GetService("VirtualUser")
 local pgui = lp:WaitForChild("PlayerGui")
 local lighting = game:GetService("Lighting")
-local ts = game:GetService("TweenService")
 local http = game:GetService("HttpService")
 
--- 🔑 1. WHITELIST SYSTEM (KICK ON FAIL)
+-- 🔑 1. WHITELIST SYSTEM
 local script_key = tostring(_G.script_key or "No Key"):gsub("%s+", "")
 local whitelist_url = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt"
 local is_whitelisted = false
@@ -28,49 +27,75 @@ if success and result then
         end
     end
 else
-    return lp:Kick("❌ Whitelist Connection Error (GitHub Issue)!")
+    return lp:Kick("❌ Whitelist Connection Error!")
 end
 
-if not is_whitelisted then 
-    return lp:Kick("❌ WRONG KEY. PLEASE CONTACT PLEPORM HUB ❌") 
-end
+if not is_whitelisted then return lp:Kick("❌ WRONG KEY. CONTACT PLEPORM HUB ❌") end
 
--- 🛡️ 2. ANTI-MEMORY LEAK & CLEANUP
+-- 🛡️ 2. CLEANUP & MEMORY PROTECTION
 if getgenv().Plepor_Executed then 
-    -- Disconnect all old events
     if getgenv().PleporM_Connections then
-        for _, v in pairs(getgenv().PleporM_Connections) do 
-            if v then v:Disconnect() end 
-        end
+        for _, v in pairs(getgenv().PleporM_Connections) do if v then v:Disconnect() end end
     end
-    -- Destroy old UI & Effects
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
     if lighting:FindFirstChild("Pleporm_Blur") then lighting.Pleporm_Blur:Destroy() end
     task.wait(0.1)
 end
-
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
+-- 🛠️ 3. GHOST OPTIMIZATION (THE CORE)
 local function OptimizePerformance()
     local Config = getgenv().Plepor_Config
-    if Config["Delete Map"] then
-        for _, v in pairs(lighting:GetChildren()) do
-            if v:IsA("PostProcessEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") then v:Destroy() end
+    
+    -- Optimize Map (Invisible but functional)
+    task.spawn(function()
+        while getgenv().Plepor_Executed do
+            if Config["Delete Map"] then
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("BasePart") and not v:IsDescendantOf(lp.Character) then
+                        -- Không ẩn Vàng
+                        if not (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
+                            v.Transparency = 1
+                            v.CanCollide = false
+                        end
+                    elseif v:IsA("Decal") or v:IsA("Texture") then
+                        v.Transparency = 1
+                    end
+                end
+            end
+            task.wait(5) -- Quét lại mỗi 5s để xử lý map mới spawn
         end
-        settings().Rendering.QualityLevel = 1
-    end
+    end)
+
+    -- Delete Other Players (Invisible Rendering)
     if Config["Delete Player"] then
-        local function clearChar(char)
-            if char and char ~= lp.Character then 
-                task.delay(0.2, function() if char then char:Destroy() end end) 
+        local function hidePlayer(p)
+            if p ~= lp then
+                p.CharacterAdded:Connect(function(char)
+                    task.wait(0.5)
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("Decal") then
+                            part.Transparency = 1
+                        end
+                    end
+                end)
+                if p.Character then
+                    for _, part in pairs(p.Character:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("Decal") then part.Transparency = 1 end
+                    end
+                end
             end
         end
-        for _, v in pairs(game.Players:GetPlayers()) do if v ~= lp then clearChar(v.Character) end end
-        table.insert(getgenv().PleporM_Connections, game.Players.PlayerAdded:Connect(function(p)
-            table.insert(getgenv().PleporM_Connections, p.CharacterAdded:Connect(clearChar))
-        end))
+        for _, p in pairs(game.Players:GetPlayers()) do hidePlayer(p) end
+        table.insert(getgenv().PleporM_Connections, game.Players.PlayerAdded:Connect(hidePlayer))
     end
+
+    -- Disable Lighting Effects
+    for _, v in pairs(lighting:GetChildren()) do
+        if v:IsA("PostProcessEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") then v.Enabled = false end
+    end
+    settings().Rendering.QualityLevel = 1
 end
 
 local function BypassAC(char)
@@ -87,7 +112,7 @@ local function BypassAC(char)
     end
 end
 
--- 🔵 3. AUTO HOP LOW SERVER
+-- 🔵 4. AUTO HOP LOW SERVER
 local function ServerHop()
     pcall(function()
         local PlaceId = game.PlaceId
@@ -102,34 +127,24 @@ local function ServerHop()
     end)
 end
 
--- 🔵 4. UI GLASS DESIGN (CENTERED)
-local blur = Instance.new("BlurEffect", lighting)
-blur.Name = "Pleporm_Blur"; blur.Size = 18
-
-local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
+-- 🔵 5. UI GLASS DESIGN
+local blur = Instance.new("BlurEffect", lighting); blur.Name = "Pleporm_Blur"; blur.Size = 18
+local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false
 local main = Instance.new("Frame", sg)
 main.Size = UDim2.new(0, 320, 0, 180); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
-local stroke = Instance.new("UIStroke", main); stroke.Thickness = 2; stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Transparency = 0.4
-
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V96"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
+title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V97"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
 title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
-
 local goldLbl = Instance.new("TextLabel", main)
-goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 65)
-goldLbl.TextSize = 18; goldLbl.Font = Enum.Font.GothamSemibold; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
-
+goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 65); goldLbl.TextSize = 18; goldLbl.Font = Enum.Font.GothamSemibold; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
 local bagLbl = Instance.new("TextLabel", main)
-bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 95)
-bagLbl.TextSize = 18; bagLbl.Font = Enum.Font.GothamSemibold; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
-
+bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 95); bagLbl.TextSize = 18; bagLbl.Font = Enum.Font.GothamSemibold; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
 local statusLbl = Instance.new("TextLabel", main)
-statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140)
-statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
+statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140); statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
 
--- 🟡 5. ULTIMATE COIN ENGINE (MEMORY OPTIMIZED)
+-- 🟡 6. FARM ENGINE (RE-OPTIMIZED)
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
@@ -140,7 +155,8 @@ local function GetAllCoins()
         if folder then
             for _, v in pairs(folder:GetDescendants()) do
                 if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                    if v.Transparency < 0.5 and v.Position.Y < 100 then table.insert(coins, v) end
+                    -- Luôn ưu tiên vàng dù Map bị ẩn
+                    if v.Position.Y < 100 then table.insert(coins, v) end
                 end
             end
         end
@@ -153,38 +169,30 @@ task.spawn(function()
         task.wait(0.01)
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
-            local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
-            if #game.Players:GetPlayers() > MaxAllowed and Config["Auto Hop"] then ServerHop() break end
-
             local coins = GetAllCoins()
             if #coins > 0 and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop() break end
-                
                 if currentCoins >= 40 then
                     isResetting = true; lp.Character:BreakJoints()
                     task.wait(7.5); currentCoins = 0; isResetting = false; continue
                 end
-
                 for _, v in pairs(coins) do
-                    if v.Parent and v.Transparency < 0.5 then
+                    if v.Parent then
                         root.CFrame = v.CFrame; firetouchinterest(root, v, 0)
-                        task.wait(0.12) -- Optimized touch time
-                        firetouchinterest(root, v, 1)
+                        task.wait(0.12); firetouchinterest(root, v, 1)
                         if not v.Parent or v.Transparency > 0.5 then
                             currentCoins = currentCoins + 1; lastCoinTick = tick()
                             task.wait(Config["Farm Speed"] or 0.05); break 
                         end
                     end
                 end
-            else 
-                currentCoins = 0; lastCoinTick = tick() 
-            end
+            else currentCoins = 0; lastCoinTick = tick() end
         end
     end
 end)
 
--- ⚪ 6. INITIALIZE
+-- ⚪ 7. INITIALIZE
 OptimizePerformance()
 task.spawn(function()
     while sg.Parent do
@@ -194,7 +202,7 @@ task.spawn(function()
             local gold = "0"
             if sb then
                 for _, v in pairs(sb:GetDescendants()) do
-                    if v:IsA("TextLabel") and v.Text:match("%d") and not v.Text:find("/") and not v.Text:lower():find("x") then
+                    if v:IsA("TextLabel") and v.Text:match("%d") and not v.Text:find("/") then
                         local n = v.Text:match("[%d%,]+")
                         if n and n ~= "2018" and n ~= "2019" then gold = n break end
                     end
@@ -204,4 +212,10 @@ task.spawn(function()
             bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
             local isFarming = #GetAllCoins() > 0
             statusLbl.Text = isFarming and "● STATUS: COLLECTING" or "○ STATUS: WAITING"
-            statusLbl.TextColor3 = isFarming and Color3.fromRGB
+            statusLbl.TextColor3 = isFarming and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+        end)
+    end
+end)
+
+table.insert(getgenv().PleporM_Connections, lp.CharacterAdded:Connect(BypassAC))
+if lp.Character then BypassAC(lp.Character) end
