@@ -177,79 +177,69 @@ local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1,
 ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 215)}):Play()
 
 -- 🟡 7. SUPER TURBO FARM (GUARANTEED COLLECTION)
-local currentCoins, isResetting = 0, false
-local lastCoinTick = tick()
-
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.05) -- Để 0.05s thay vì tick() trần để tránh crash Game
+        task.wait(0.05) 
         local Config = getgenv().Plepor_Config
-        if Config and Config["Turbo Farm"] and not isResetting then
+        if Config and Config["Turbo Farm"] and not isHopping then
             pcall(function()
-                -- QUÉT UI CHỜ VÀO TRẬN
-                local isWaitingForMap = false
-                for _, v in pairs(pgui:GetDescendants()) do
-                    if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                        local txt = string.lower(v.Text)
-                        if txt:find("waiting for your turn") or txt:find("receive your weapon") or txt:find("intermission") or txt:find("voting") then
-                            isWaitingForMap = true; break
-                        end
-                    end
-                end
-
-                if isWaitingForMap then CurrentAction = "WAITING FOR MATCH..."; return end
-
                 local char = lp.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
-
+                -- 1. XỬ LÝ KHI ĐẦY TÚI (40 Vàng)
                 if currentCoins >= 40 then
-                    CurrentAction = "BAG FULL! RESETTING..."
-                    isResetting = true
-                    SendWebhook(currentCoins)
-                    char:BreakJoints(); task.wait(7.5)
-                    currentCoins = 0; isResetting = false; return
+                    CurrentAction = "BAG FULL! WAITING / HOPPING..."
+                    if tick() - lastCoinTick > 10 then 
+                        SendWebhook(currentCoins)
+                        lastCoinTick = tick() + 9999 
+                    end
+                    if Config["Auto Hop"] then ServerHop() end
+                    return
                 end
 
+                -- 2. CHỐNG KẸT
+                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
+
+                -- 3. QUÉT TRỰC TIẾP TÌM VÀNG (Bỏ vụ check Map Normal đi)
                 local foundCoin = false
                 local searchArea = workspace:FindFirstChild("Normal") or workspace
                 
                 for _, v in ipairs(searchArea:GetDescendants()) do
-                    -- Tìm đúng Vàng Thật (Có chứa TouchTransmitter)
-                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") then
-                        if v.Transparency < 0.9 and v:FindFirstChild("TouchTransmitter") then
-                            foundCoin = true
-                            CurrentAction = "COLLECTING COINS"
-                            
-                            -- Bay tới vị trí Vàng
-                            root.CFrame = v.CFrame
-                            task.wait(0.02) -- Nghỉ một nhịp siêu nhỏ để nhân vật load vị trí
-                            
-                            -- Chạm 1 lần dứt khoát (An toàn không bị Game kick)
-                            firetouchinterest(root, v, 0)
-                            task.wait(0.01)
-                            firetouchinterest(root, v, 1)
-                            
-                            -- Đánh dấu đã nhặt trên máy mình để qua cục khác luôn
-                            v.Name = "Collected_PleporM"
-                            v.Transparency = 1
-                            v.CFrame = CFrame.new(0, -9999, 0)
-                            
-                            currentCoins = currentCoins + 1
-                            lastCoinTick = tick()
-                            
-                            -- Khuyến nghị Farm Speed nên để 0.05 hoặc 0.1 cho an toàn
-                            task.wait(Config["Farm Speed"] or 0.05)
-                            break 
-                        end
+                    -- MM2 Vàng luôn có tên Coin_Server hoặc Coin và chứa TouchTransmitter
+                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") and v:FindFirstChild("TouchTransmitter") and v.Transparency < 1 and not v:FindFirstChild("PleporM_Collected") then
+                        foundCoin = true
+                        CurrentAction = "COLLECTING COINS..."
+                        
+                        -- Bay tới và chạm
+                        root.CFrame = v.CFrame
+                        task.wait(0.02)
+                        firetouchinterest(root, v, 0)
+                        task.wait(0.01)
+                        firetouchinterest(root, v, 1)
+                        
+                        -- Đánh dấu & quăng xuống gầm để bỏ qua luôn
+                        local tag = Instance.new("BoolValue", v)
+                        tag.Name = "PleporM_Collected"
+                        v.Transparency = 1 
+                        v.CFrame = CFrame.new(0, -9999, 0)
+                        
+                        currentCoins = currentCoins + 1
+                        lastCoinTick = tick()
+                        
+                        task.wait(Config["Farm Speed"] or 0)
+                        break 
                     end
                 end
                 
+                -- 4. XỬ LÝ KHI KHÔNG THẤY VÀNG (Hoặc ván kết thúc)
                 if not foundCoin then 
-                    CurrentAction = workspace:FindFirstChild("Normal") and "WAITING FOR COIN SPAWN..." or "WAITING FOR NEXT MATCH..."
-                    lastCoinTick = tick() 
+                    CurrentAction = "WAITING FOR MATCH / COINS..."
+                    -- Nếu đang chờ mà thư mục Normal trống không -> Chứng tỏ đã về lại sảnh (Lobby), tự reset túi vàng.
+                    local normalMap = workspace:FindFirstChild("Normal")
+                    if not normalMap or #normalMap:GetChildren() == 0 then
+                        currentCoins = 0
+                    end
                 end
             end)
         end
