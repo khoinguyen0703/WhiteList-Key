@@ -135,7 +135,7 @@ local lastCoinTick = tick()
 
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.05) -- Giảm trễ xuống cực thấp
+        task.wait(0.05)
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
             pcall(function()
@@ -143,12 +143,18 @@ task.spawn(function()
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
+                -- Check if stuck
+                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then 
+                    print("⚠️ [LOG] Stuck for 3 minutes, hopping server...")
+                    ServerHop(); return 
+                end
 
+                -- Bag full logic
                 if currentCoins >= 40 then
                     CurrentAction = "BAG FULL! RESETTING..."
                     isResetting = true
-                    SendWebhook(currentCoins) -- Gửi webhook báo cáo
+                    print("💰 [LOG] Bag full (40 coins)! Sending Webhook and Resetting character...")
+                    SendWebhook(currentCoins)
                     char:BreakJoints()
                     task.wait(7.5)
                     currentCoins = 0
@@ -160,25 +166,39 @@ task.spawn(function()
                 local searchArea = workspace:FindFirstChild("Normal") or workspace
                 
                 for _, v in ipairs(searchArea:GetDescendants()) do
-                    -- Tìm đúng những cục có tên Coin hoặc Gold
-                    if v:IsA("BasePart") and (v.Name:lower() == "coin" or v.Name == "Coin_Server") then
-                        foundCoin = true
-                        CurrentAction = "COLLECTING COINS..."
-                        
-                        -- Dịch chuyển và gửi lệnh chạm
-                        root.CFrame = v.CFrame
-                        firetouchinterest(root, v, 0)
-                        firetouchinterest(root, v, 1)
-                        
-                        -- ĐÂY LÀ CHÌA KHÓA: Đổi tên và ẩn nó đi thay vì Destroy()
-                        v.Name = "Collected_PleporM" 
-                        v.Transparency = 1
-                        v.CFrame = CFrame.new(0, -9999, 0) -- Giấu đi chỗ khác
-                        
-                        currentCoins = currentCoins + 1
-                        lastCoinTick = tick()
-                        task.wait(Config["Farm Speed"] or 0.02)
-                        break -- Nhặt từng cục siêu nhanh
+                    -- Find Part with "Coin" or "Gold" in its name
+                    if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
+                        -- Check if the coin is valid/visible
+                        if v.Transparency < 0.9 then
+                            foundCoin = true
+                            CurrentAction = "COLLECTING COINS..."
+                            
+                            -- LOG STEP 1: FOUND COIN
+                            print("🔍 [LOG] Found coin: [" .. v.Name .. "] at position: " .. tostring(v.Position))
+                            
+                            -- Teleport character to the coin
+                            root.CFrame = v.CFrame
+                            task.wait(0.05) -- Wait briefly to bypass anti-cheat position checks
+                            
+                            -- LOG STEP 2: SEND TOUCH COMMAND
+                            print("⚡ [LOG] Sending touch interest to [" .. v.Name .. "]...")
+                            firetouchinterest(root, v, 0)
+                            task.wait(0.01) -- Add slight delay so the server registers the touch
+                            firetouchinterest(root, v, 1)
+                            
+                            -- LOG STEP 3: HIDE COLLECTED COIN
+                            v.Name = "Collected_PleporM" 
+                            v.Transparency = 1
+                            v.CFrame = CFrame.new(0, -9999, 0)
+                            print("✅ [LOG] Successfully collected! Hiding this coin.")
+                            
+                            currentCoins = currentCoins + 1
+                            lastCoinTick = tick()
+                            
+                            -- Delay between collections
+                            task.wait(Config["Farm Speed"] or 0.05)
+                            break 
+                        end
                     end
                 end
                 
