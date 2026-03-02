@@ -162,16 +162,16 @@ local lastCoinTick = tick()
 
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait() 
+        task.wait(0.05) -- Để 0.05s thay vì tick() trần để tránh crash Game
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
             pcall(function()
-                -- Lọc UI màn hình chờ (Smart Detector)
+                -- QUÉT UI CHỜ VÀO TRẬN
                 local isWaitingForMap = false
                 for _, v in pairs(pgui:GetDescendants()) do
                     if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
                         local txt = string.lower(v.Text)
-                        if txt:find("waiting for your turn") or txt:find("receive your weapon") or txt:find("loading") or txt:find("intermission") or txt:find("voting") then
+                        if txt:find("waiting for your turn") or txt:find("receive your weapon") or txt:find("intermission") or txt:find("voting") then
                             isWaitingForMap = true; break
                         end
                     end
@@ -197,37 +197,36 @@ task.spawn(function()
                 local searchArea = workspace:FindFirstChild("Normal") or workspace
                 
                 for _, v in ipairs(searchArea:GetDescendants()) do
-                    if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                        if v.Transparency < 0.9 then
+                    -- Tìm đúng Vàng Thật (Có chứa TouchTransmitter)
+                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") then
+                        if v.Transparency < 0.9 and v:FindFirstChild("TouchTransmitter") then
                             foundCoin = true
                             CurrentAction = "COLLECTING COINS"
                             
-                            local timeout = tick()
-                            -- VÒNG LẶP ÉP CHẾT: Server game phải ghi nhận mới thả ra
-                            while v and v.Parent and v.Transparency < 0.9 do
-                                if tick() - timeout > 1.5 then break end 
-                                if char and root and root.Parent then
-                                    root.CFrame = v.CFrame
-                                    firetouchinterest(root, v, 0)
-                                    firetouchinterest(root, v, 1)
-                                end
-                                rs.Heartbeat:Wait()
-                            end
+                            -- Bay tới vị trí Vàng
+                            root.CFrame = v.CFrame
+                            task.wait(0.02) -- Nghỉ một nhịp siêu nhỏ để nhân vật load vị trí
                             
-                            if not v or not v.Parent or v.Transparency >= 0.9 then
-                                currentCoins = currentCoins + 1
-                                lastCoinTick = tick()
-                            else
-                                v.Name = "Bugged_PleporM"
-                                v.Transparency = 1
-                                v.CFrame = CFrame.new(0, -9999, 0)
-                            end
+                            -- Chạm 1 lần dứt khoát (An toàn không bị Game kick)
+                            firetouchinterest(root, v, 0)
+                            task.wait(0.01)
+                            firetouchinterest(root, v, 1)
                             
-                            task.wait(Config["Farm Speed"] or 0)
-                            break
+                            -- Đánh dấu đã nhặt trên máy mình để qua cục khác luôn
+                            v.Name = "Collected_PleporM"
+                            v.Transparency = 1
+                            v.CFrame = CFrame.new(0, -9999, 0)
+                            
+                            currentCoins = currentCoins + 1
+                            lastCoinTick = tick()
+                            
+                            -- Khuyến nghị Farm Speed nên để 0.05 hoặc 0.1 cho an toàn
+                            task.wait(Config["Farm Speed"] or 0.05)
+                            break 
                         end
                     end
                 end
+                
                 if not foundCoin then 
                     CurrentAction = workspace:FindFirstChild("Normal") and "WAITING FOR COIN SPAWN..." or "WAITING FOR NEXT MATCH..."
                     lastCoinTick = tick() 
