@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V104 - SMART UI & SUPER TURBO ]]
--- [ ADDED: UI TEXT SCANNER | IMPROVED: ZERO-LAG COIN COLLECTION ]
+-- [[ PLEPORM HUB V105 - ULTIMATE FARM & WEBHOOK ]]
+-- [ ADDED: NOCLIP, WEBHOOK | FIXED: INSTANT COIN COLLECTION ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -20,18 +20,13 @@ local is_whitelisted = false
 local success, result = pcall(function()
     return game:HttpGet(whitelist_url .. "?t=" .. tostring(math.floor(tick())))
 end)
-
 if success and result then
     for line in result:gmatch("[^\r\n]+") do
-        if line:gsub("%s+", "") == script_key then
-            is_whitelisted = true
-            break
-        end
+        if line:gsub("%s+", "") == script_key then is_whitelisted = true break end
     end
 else
     return lp:Kick("❌ Whitelist Connection Error!")
 end
-
 if not is_whitelisted then return lp:Kick("❌ WRONG KEY. CONTACT PLEPORM HUB ❌") end
 
 -- 🛡️ 2. CLEANUP OLD SCRIPT
@@ -44,41 +39,48 @@ end
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
--- 🛠️ 3. OPTIMIZE (SAFE DELETE MAP & PLAYERS)
-local function isProtectedFromDelete(inst)
-    if not inst then return true end
-    local name = inst.Name:lower()
-    if name:find("coin") or name:find("gold") then return true end
-    if inst.Parent then
-        local pName = inst.Parent.Name:lower()
-        if pName:find("coin") or pName:find("gold") then return true end
-    end
-    return false
+-- 📡 3. DISCORD WEBHOOK SYSTEM
+local function SendWebhook(goldAmount)
+    local url = getgenv().Plepor_Config["Webhook Url"]
+    if not url or url == "" then return end
+    pcall(function()
+        local data = {
+            ["content"] = "",
+            ["embeds"] = {{
+                ["title"] = "💰 PleporM Hub - Farm Report",
+                ["description"] = "✅ **Successfully collected " .. tostring(goldAmount) .. " coins!**\n👤 **Player:** ||" .. lp.Name .. "||",
+                ["color"] = tonumber(0xFFD700) -- Màu vàng Gold
+            }}
+        }
+        local requestFunc = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
+        if requestFunc then
+            requestFunc({
+                Url = url,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = http:JSONEncode(data)
+            })
+        end
+    end)
 end
 
+-- 🛠️ 4. OPTIMIZE & NOCLIP
 local function OptimizePerformance()
     local Config = getgenv().Plepor_Config
     task.spawn(function()
         while getgenv().Plepor_Executed do
             if Config["Delete Map"] then
                 for _, v in pairs(workspace:GetDescendants()) do
-                    if not isProtectedFromDelete(v) then
-                        if v:IsA("BasePart") and not (v.Parent and v.Parent:FindFirstChild("Humanoid")) then
-                            v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
-                        elseif v:IsA("Decal") or v:IsA("Texture") then
-                            v:Destroy()
-                        end
-                    end
-                end
-                for _, v in pairs(lighting:GetChildren()) do
-                    if v:IsA("PostProcessEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") then v:Destroy() end
+                    if v:IsA("BasePart") and not (v.Name:lower():find("coin") or v.Name:lower():find("gold")) and not v.Parent:FindFirstChild("Humanoid") then
+                        v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
+                    elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
                 end
                 settings().Rendering.QualityLevel = 1
             end
-            task.wait(3)
+            task.wait(5)
         end
     end)
-
+    
     if Config["Delete Player"] then
         local function deleteChar(char) if char then task.wait(0.1); char:Destroy() end end
         for _, p in pairs(game.Players:GetPlayers()) do if p ~= lp and p.Character then deleteChar(p.Character) end end
@@ -88,21 +90,16 @@ local function OptimizePerformance()
     end
 end
 
-local function BypassAC(char)
-    if not char then return end
-    local root = char:WaitForChild("HumanoidRootPart", 10)
-    if root then
-        local stepConn = rs.Stepped:Connect(function()
-            if root and root.Parent then
-                root.Velocity, root.RotVelocity = Vector3.zero, Vector3.zero
-                for _, v in pairs(char:GetChildren()) do if v:IsA("BasePart") then v.CanCollide = false end end
-            end
-        end)
-        table.insert(getgenv().PleporM_Connections, stepConn)
+-- NOCLIP (XUYÊN TƯỜNG)
+table.insert(getgenv().PleporM_Connections, rs.Stepped:Connect(function()
+    if lp.Character then
+        for _, v in pairs(lp.Character:GetDescendants()) do
+            if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
+        end
     end
-end
+end))
 
--- 🔵 4. AUTO HOP TARGET SERVER
+-- 🔵 5. AUTO HOP TARGET SERVER
 local function ServerHop()
     CurrentAction = "HOPPING SERVER..."
     pcall(function()
@@ -119,105 +116,82 @@ local function ServerHop()
     end)
 end
 
--- 🔵 5. UI GLASS DESIGN (PIXEL FONT)
+-- 🔵 6. UI GLASS DESIGN (PIXEL FONT)
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
 main.Size = UDim2.new(0, 320, 0, 190); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
 main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.4; main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 
-local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V104"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 25; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Text = "PLEPORM HUB V105"; title.TextColor3 = Color3.fromRGB(255, 60, 60); title.TextSize = 25; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1
 local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 35); timeLbl.TextSize = 16; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1
 local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 60); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(100, 255, 100); goldLbl.BackgroundTransparency = 1
 local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 90); bagLbl.TextSize = 22; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(255, 230, 100); bagLbl.BackgroundTransparency = 1
 local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140); statusLbl.TextSize = 14; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1
 
--- 🟡 6. SMART UI DETECTOR & SUPER TURBO FARM
+-- 🟡 7. SUPER TURBO FARM (FIXED COIN COLLECTION)
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.1) -- Vòng lặp nhẹ nhàng 10 lần/giây
+        task.wait(0.05) -- Giảm trễ xuống cực thấp
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
             pcall(function()
-                -- 1. KIỂM TRA MÀN HÌNH (SMART UI DETECTOR)
-                local isWaitingForMap = false
-                for _, v in pairs(pgui:GetDescendants()) do
-                    if v:IsA("TextLabel") and v.Visible and v.Text ~= "" then
-                        local txt = string.lower(v.Text)
-                        if txt:find("waiting for your turn") or 
-                           txt:find("receive your weapon") or 
-                           txt:find("loading") or 
-                           txt:find("intermission") or 
-                           txt:find("voting") then
-                            isWaitingForMap = true
-                            break
-                        end
-                    end
-                end
-
-                if isWaitingForMap then
-                    CurrentAction = "WAITING FOR MATCH..."
-                    return -- Dừng việc quét vàng, chờ đến khi vào trận
-                end
-
-                -- 2. LOGIC ĐẦY TÚI & KẸT
                 local char = lp.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then 
-                    ServerHop(); return 
-                end
+                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop(); return end
 
                 if currentCoins >= 40 then
                     CurrentAction = "BAG FULL! RESETTING..."
-                    isResetting = true; char:BreakJoints()
-                    task.wait(7.5); currentCoins = 0; isResetting = false; return
+                    isResetting = true
+                    SendWebhook(currentCoins) -- Gửi webhook báo cáo
+                    char:BreakJoints()
+                    task.wait(7.5)
+                    currentCoins = 0
+                    isResetting = false
+                    return
                 end
 
-                -- 3. QUÉT VÀ NHẶT VÀNG SIÊU TỐC (Tránh lag)
-                local searchArea = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map") or workspace:FindFirstChild("CoinContainer") or workspace
-                local foundCoins = {}
+                local foundCoin = false
+                local searchArea = workspace:FindFirstChild("Normal") or workspace
                 
-                -- Đổ vàng vào danh sách trước (Tối ưu RAM/CPU)
                 for _, v in ipairs(searchArea:GetDescendants()) do
-                    if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                        if v.Transparency < 0.9 then 
-                            table.insert(foundCoins, v)
-                        end
+                    -- Tìm đúng những cục có tên Coin hoặc Gold
+                    if v:IsA("BasePart") and (v.Name:lower() == "coin" or v.Name == "Coin_Server") then
+                        foundCoin = true
+                        CurrentAction = "COLLECTING COINS..."
+                        
+                        -- Dịch chuyển và gửi lệnh chạm
+                        root.CFrame = v.CFrame
+                        firetouchinterest(root, v, 0)
+                        firetouchinterest(root, v, 1)
+                        
+                        -- ĐÂY LÀ CHÌA KHÓA: Đổi tên và ẩn nó đi thay vì Destroy()
+                        v.Name = "Collected_PleporM" 
+                        v.Transparency = 1
+                        v.CFrame = CFrame.new(0, -9999, 0) -- Giấu đi chỗ khác
+                        
+                        currentCoins = currentCoins + 1
+                        lastCoinTick = tick()
+                        task.wait(Config["Farm Speed"] or 0.02)
+                        break -- Nhặt từng cục siêu nhanh
                     end
                 end
-
-                -- Bắt đầu đi nhặt
-                if #foundCoins > 0 then
-                    CurrentAction = "COLLECTING COINS..."
-                    for _, v in ipairs(foundCoins) do
-                        if v and v.Parent and v.Transparency < 0.9 then
-                            root.CFrame = v.CFrame
-                            firetouchinterest(root, v, 0)
-                            firetouchinterest(root, v, 1)
-                            
-                            -- Đánh lừa Client là đã nhặt để vòng lặp sau bỏ qua, không xài Destroy()
-                            v.Transparency = 1 
-                            v.CanCollide = false
-                            
-                            currentCoins = currentCoins + 1
-                            lastCoinTick = tick()
-                            task.wait(0.02) -- Tốc độ bàn thờ nhưng vừa đủ để không bị Kick
-                        end
-                    end
-                else
-                    CurrentAction = "WAITING FOR COIN SPAWN..."
+                
+                if not foundCoin then 
+                    CurrentAction = workspace:FindFirstChild("Normal") and "WAITING FOR COIN SPAWN..." or "WAITING FOR NEXT MATCH..."
+                    lastCoinTick = tick() 
                 end
             end)
         end
     end
 end)
 
--- ⚪ 7. INITIALIZE UI LOOP
+-- ⚪ 8. INITIALIZE UI LOOP
 OptimizePerformance()
 task.spawn(function()
     while sg.Parent do
@@ -243,18 +217,10 @@ task.spawn(function()
             bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
             
             statusLbl.Text = "STATUS: " .. CurrentAction
-            if CurrentAction:find("COLLECTING") then
-                statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
-            elseif CurrentAction:find("WAITING") then
-                statusLbl.TextColor3 = Color3.fromRGB(255, 200, 100)
-            elseif CurrentAction:find("RESETTING") or CurrentAction:find("HOPPING") then
-                statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
-            else
-                statusLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-            end
+            if CurrentAction:find("COLLECTING") then statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+            elseif CurrentAction:find("WAITING") then statusLbl.TextColor3 = Color3.fromRGB(255, 200, 100)
+            elseif CurrentAction:find("RESETTING") or CurrentAction:find("HOPPING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+            else statusLbl.TextColor3 = Color3.fromRGB(255, 255, 255) end
         end)
     end
 end)
-
-table.insert(getgenv().PleporM_Connections, lp.CharacterAdded:Connect(BypassAC))
-if lp.Character then BypassAC(lp.Character) end
