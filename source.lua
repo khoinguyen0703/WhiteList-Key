@@ -130,27 +130,43 @@ statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.Back
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
--- Hàm tìm Map thực tế đang thi đấu
-local function GetMatchMap()
-    local mapFolder = workspace:FindFirstChild("Normal") -- Folder Map mặc định của MM2
-    if mapFolder and #mapFolder:GetChildren() > 0 then
-        return mapFolder
+-- Hàm tìm Coin thông minh (Chỉ tìm ở những nơi hợp lệ trong trận đấu)
+local function GetAllCoins()
+    local coins = {}
+    -- Danh sách các Folder MM2 thường dùng chứa Vàng
+    local searchLocations = {
+        workspace:FindFirstChild("Normal"),
+        workspace:FindFirstChild("Map"),
+        workspace:FindFirstChild("CoinContainer"),
+        workspace:FindFirstChild("CoinVisuals")
+    }
+    
+    for _, folder in pairs(searchLocations) do
+        if folder then
+            for _, v in pairs(folder:GetDescendants()) do
+                if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
+                    -- Kiểm tra vàng thật (không tàng hình, không nằm trong Lobby)
+                    if v.Parent and v.Transparency < 0.5 and v.Position.Y < 100 then 
+                        table.insert(coins, v)
+                    end
+                end
+            end
+        end
     end
-    return nil
+    return coins
 end
 
 task.spawn(function()
     while task.wait(0.01) do
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
-            -- Auto Hop Logic
+            -- Server Hop Logic
             local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
             if #game.Players:GetPlayers() > MaxAllowed and Config["Auto Hop"] then ServerHop() end
 
-            local currentMap = GetMatchMap()
+            local coins = GetAllCoins()
             
-            -- CHỈ CHẠY KHI TÌM THẤY MAP ĐANG THI ĐẤU
-            if currentMap and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            if #coins > 0 and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop() end
                 
@@ -159,22 +175,24 @@ task.spawn(function()
                     task.wait(7.5); currentCoins = 0; isResetting = false; continue
                 end
 
-                -- CHỈ QUÉT VÀNG BÊN TRONG FOLDER MAP THI ĐẤU
-                for _, v in pairs(currentMap:GetDescendants()) do
-                    if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                        if v.Parent and v.Transparency < 0.5 then
-                            root.CFrame = v.CFrame; firetouchinterest(root, v, 0)
-                            local t = tick(); while v.Parent and v.Transparency < 0.5 and tick()-t < 0.2 do rs.Heartbeat:Wait() end
-                            firetouchinterest(root, v, 1)
-                            if not v.Parent or v.Transparency > 0.5 then
-                                currentCoins = currentCoins + 1; lastCoinTick = tick()
-                                task.wait(Config["Farm Speed"] or 0.05); break 
-                            end
+                -- Nhặt đồng vàng gần nhất
+                for _, v in pairs(coins) do
+                    if v.Parent and v.Transparency < 0.5 then
+                        root.CFrame = v.CFrame; firetouchinterest(root, v, 0)
+                        
+                        local t = tick()
+                        -- Tối ưu thời gian bám vàng (0.15s là hoàn hảo)
+                        while v.Parent and v.Transparency < 0.5 and tick() - t < 0.15 do rs.Heartbeat:Wait() end
+                        
+                        firetouchinterest(root, v, 1)
+                        if not v.Parent or v.Transparency > 0.5 then
+                            currentCoins = currentCoins + 1; lastCoinTick = tick()
+                            task.wait(Config["Farm Speed"] or 0.05); break 
                         end
                     end
                 end
             else 
-                -- Đang ở sảnh hoặc chưa có map -> Đứng im
+                -- Đứng im nếu không có vàng trong trận
                 currentCoins = 0; lastCoinTick = tick() 
             end
         end
