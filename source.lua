@@ -1,6 +1,6 @@
 -- [[ 1. HỆ THỐNG KIỂM TRA KEY - WHITELIST ]]
 local UserKey = _G.script_key or script_key
-local WhitelistURL = "THAY_LINK_RAW_FILE_KEYS_TXT_CUA_FEN_VAO_DAY" 
+local WhitelistURL = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/refs/heads/main/key.txt?token=GHSAT0AAAAAADWYPFEUPCNNOZC54SQUVE2A2NF5TUA" 
 
 local function Verify()
     local success, content = pcall(function() return game:HttpGet(WhitelistURL) end)
