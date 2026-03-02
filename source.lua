@@ -130,8 +130,13 @@ statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.Back
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
-local function GetMap()
-    return workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map") or workspace:FindFirstChild("CoinContainer")
+-- Hàm tìm Map thực tế đang thi đấu
+local function GetMatchMap()
+    local mapFolder = workspace:FindFirstChild("Normal") -- Folder Map mặc định của MM2
+    if mapFolder and #mapFolder:GetChildren() > 0 then
+        return mapFolder
+    end
+    return nil
 end
 
 task.spawn(function()
@@ -142,8 +147,10 @@ task.spawn(function()
             local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
             if #game.Players:GetPlayers() > MaxAllowed and Config["Auto Hop"] then ServerHop() end
 
-            local mapFound = GetMap()
-            if mapFound and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            local currentMap = GetMatchMap()
+            
+            -- CHỈ CHẠY KHI TÌM THẤY MAP ĐANG THI ĐẤU
+            if currentMap and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop() end
                 
@@ -152,7 +159,8 @@ task.spawn(function()
                     task.wait(7.5); currentCoins = 0; isResetting = false; continue
                 end
 
-                for _, v in pairs(workspace:GetDescendants()) do
+                -- CHỈ QUÉT VÀNG BÊN TRONG FOLDER MAP THI ĐẤU
+                for _, v in pairs(currentMap:GetDescendants()) do
                     if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
                         if v.Parent and v.Transparency < 0.5 then
                             root.CFrame = v.CFrame; firetouchinterest(root, v, 0)
@@ -166,6 +174,7 @@ task.spawn(function()
                     end
                 end
             else 
+                -- Đang ở sảnh hoặc chưa có map -> Đứng im
                 currentCoins = 0; lastCoinTick = tick() 
             end
         end
