@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V92 - PERFORMANCE & SECURITY ]]
--- [ FIXED: WHITELIST | ADDED: DELETE MAP, DELETE PLAYER, LOW SERVER HOP ]
+-- [[ PLEPORM HUB V93 - ENGLISH EDITION ]]
+-- [ SECURITY: KICK ON WRONG KEY | PERFORMANCE: DELETE MAP/PLAYER | UI: GLASS CENTERED ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -11,7 +11,7 @@ local lighting = game:GetService("Lighting")
 local ts = game:GetService("TweenService")
 local http = game:GetService("HttpService")
 
--- 🔑 1. WHITELIST SYSTEM (FIXED NIL ERROR)
+-- 🔑 1. WHITELIST SYSTEM (KICK ON FAIL)
 local script_key = tostring(_G.script_key or "No Key"):gsub("%s+", "")
 local whitelist_url = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt"
 local is_whitelisted = false
@@ -28,12 +28,14 @@ if success and result then
         end
     end
 else
-    return lp:Kick("❌ Lỗi kết nối Whitelist (GitHub Error)!")
+    return lp:Kick("❌ Whitelist Connection Error (GitHub Issue)!")
 end
 
-if not is_whitelisted then return lp:Kick("❌ Sai Key hoặc Key hết hạn!") end
+if not is_whitelisted then 
+    return lp:Kick("❌ WRONG KEY. PLEASE CONTACT PLEPORM HUB ❌") 
+end
 
--- 🛡️ 2. BYPASS & PERFORMANCE (DELETE MAP / PLAYER)
+-- 🛡️ 2. BYPASS & PERFORMANCE
 if getgenv().Plepor_Executed then 
     for _, v in pairs(getgenv().PleporM_Connections or {}) do if v then v:Disconnect() end end
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
@@ -42,23 +44,27 @@ end
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
--- Hàm tối ưu cấu hình (Delete Map & Player)
 local function OptimizePerformance()
     local Config = getgenv().Plepor_Config
-    -- Delete Map (Xóa hiệu ứng thừa)
+    -- Delete Map Effects
     if Config["Delete Map"] then
         for _, v in pairs(lighting:GetChildren()) do
             if v:IsA("PostProcessEffect") or v:IsA("BloomEffect") or v:IsA("SunRaysEffect") then v:Destroy() end
         end
         settings().Rendering.QualityLevel = 1
     end
-    -- Delete Player (Ẩn người chơi khác để giảm lag)
+    -- Delete Other Players (Boost FPS)
     if Config["Delete Player"] then
         for _, v in pairs(game.Players:GetPlayers()) do
             if v ~= lp and v.Character then v.Character:Destroy() end
         end
         game.Players.PlayerAdded:Connect(function(p)
-            p.CharacterAdded:Connect(function(c) if getgenv().Plepor_Config["Delete Player"] then task.wait(0.5) c:Destroy() end end)
+            p.CharacterAdded:Connect(function(c) 
+                if getgenv().Plepor_Config["Delete Player"] then 
+                    task.wait(0.5) 
+                    c:Destroy() 
+                end 
+            end)
         end)
     end
 end
@@ -75,13 +81,13 @@ local function BypassAC(char)
     end
 end
 
--- 🔵 3. AUTO HOP LOW SERVER (TÌM SERVER VẮNG NHẤT)
+-- 🔵 3. AUTO HOP LOW SERVER
 local function ServerHop()
     pcall(function()
         local PlaceId = game.PlaceId
         local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
         
-        -- Sắp xếp Server từ ít người nhất đến nhiều người nhất
+        -- Sort servers by player count (lowest first)
         table.sort(res, function(a, b) return a.playing < b.playing end)
         
         for _, v in pairs(res) do 
@@ -93,7 +99,7 @@ local function ServerHop()
     end)
 end
 
--- 🔵 4. UI GLASS (GIỮ NGUYÊN)
+-- 🔵 4. UI GLASS DESIGN
 local blur = Instance.new("BlurEffect", lighting)
 blur.Name = "Pleporm_Blur"; blur.Size = 18
 
@@ -105,7 +111,7 @@ Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 local stroke = Instance.new("UIStroke", main); stroke.Thickness = 2; stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Transparency = 0.4
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V92"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
+title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V93"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
 title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
 
 local goldLbl = Instance.new("TextLabel", main)
@@ -120,7 +126,7 @@ local statusLbl = Instance.new("TextLabel", main)
 statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140)
 statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
 
--- 🟡 5. FARM ENGINE (GIỮ NGUYÊN & ADD AUTO HOP LOGIC)
+-- 🟡 5. FARM ENGINE
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
 
@@ -132,7 +138,7 @@ task.spawn(function()
     while task.wait(0.01) do
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
-            -- Auto Hop khi quá người (Logic Fix)
+            -- Auto Hop Logic
             local MaxAllowed = tonumber(Config["Max Players to Hop"]) or 5
             if #game.Players:GetPlayers() > MaxAllowed and Config["Auto Hop"] then ServerHop() end
 
@@ -140,10 +146,12 @@ task.spawn(function()
             if mapFound and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 if tick() - lastCoinTick > 180 and Config["Auto Hop"] then ServerHop() end
+                
                 if currentCoins >= 40 then
                     isResetting = true; lp.Character:BreakJoints()
                     task.wait(7.5); currentCoins = 0; isResetting = false; continue
                 end
+
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
                         if v.Parent and v.Transparency < 0.5 then
@@ -157,12 +165,14 @@ task.spawn(function()
                         end
                     end
                 end
-            else currentCoins = 0; lastCoinTick = tick() end
+            else 
+                currentCoins = 0; lastCoinTick = tick() 
+            end
         end
     end
 end)
 
--- ⚪ 6. INITIALIZE
+-- ⚪ 6. INITIALIZE UI LOOP
 OptimizePerformance()
 task.spawn(function()
     while task.wait(0.5) do
