@@ -1,5 +1,5 @@
--- [[ PLEPORM HUB V89 - ULTIMATE FIX & WHITELIST ]]
--- [ STATUS: FIXED GOLD SPAWN | GLASS UI | SECURITY ]
+=-- [[ PLEPORM HUB V90 - TOTAL REPAIR & AUTO FARM ]]
+-- [ STATUS: FIXED WAITING ERROR | SMART MAP DETECTION | WHITELIST ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -11,13 +11,13 @@ local lighting = game:GetService("Lighting")
 local ts = game:GetService("TweenService")
 local http = game:GetService("HttpService")
 
--- 🔑 1. HỆ THỐNG WHITELIST KEY (QUAN TRỌNG)
+-- 🔑 1. WHITELIST SYSTEM
 local script_key = _G.script_key or "No Key"
 local whitelist_url = "https://raw.githubusercontent.com/khoinguyen0703/WhiteList-Key/main/key.txt"
 local is_whitelisted = false
 
 local success, result = pcall(function()
-    return game:HttpGet(whitelist_url .. "?t=" .. tick()) -- Thêm tick để tránh bị cache key cũ
+    return game:HttpGet(whitelist_url .. "?t=" .. tick())
 end)
 
 if success then
@@ -28,16 +28,12 @@ if success then
         end
     end
 else
-    lp:Kick("❌ Lỗi kết nối Server Whitelist (Kiểm tra mạng)!")
-    return
+    return lp:Kick("❌ Lỗi kết nối Whitelist!")
 end
 
-if not is_whitelisted then
-    lp:Kick("❌ Key không hợp lệ hoặc đã hết hạn!")
-    return
-end
+if not is_whitelisted then return lp:Kick("❌ Sai Key hoặc Key hết hạn!") end
 
--- 🛡️ 2. CLEANUP & BYPASS SYSTEM
+-- 🛡️ 2. BYPASS & CLEANUP
 if getgenv().Plepor_Executed then 
     for _, v in pairs(getgenv().PleporM_Connections or {}) do if v then v:Disconnect() end end
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
@@ -58,27 +54,9 @@ local function BypassAC(char)
     end
 end
 
--- 🟢 3. DATA FUNCTIONS
-local function GetTotalGold()
-    local gold = "0"
-    pcall(function()
-        local sb = pgui:FindFirstChild("Scoreboard", true)
-        if sb then
-            for _, v in pairs(sb:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Text:match("%d") and not v.Text:find("/") and not v.Text:lower():find("x") then
-                    local n = v.Text:match("[%d%,]+")
-                    if n and n ~= "2018" and n ~= "2019" and #n < 10 then gold = n break end
-                end
-            end
-        end
-    end)
-    return gold
-end
-
--- 🔵 4. UI GLASS (CENTERED)
+-- 🔵 3. UI GLASS (CĂN GIỮA & MỜ ẢO)
 local blur = Instance.new("BlurEffect", lighting)
-blur.Name = "Pleporm_Blur"; blur.Size = 0
-ts:Create(blur, TweenInfo.new(1.5), {Size = 18}):Play()
+blur.Name = "Pleporm_Blur"; blur.Size = 18
 
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
@@ -88,7 +66,7 @@ Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
 local stroke = Instance.new("UIStroke", main); stroke.Thickness = 2; stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Transparency = 0.4
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V89"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
+title.Size = UDim2.new(1, 0, 0, 40); title.Text = "PLEPORM HUB V90"; title.TextColor3 = Color3.fromRGB(255, 60, 60)
 title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
 
 local goldLbl = Instance.new("TextLabel", main)
@@ -103,54 +81,47 @@ local statusLbl = Instance.new("TextLabel", main)
 statusLbl.Size = UDim2.new(1, 0, 0, 25); statusLbl.Position = UDim2.new(0, 0, 0, 140)
 statusLbl.TextSize = 13; statusLbl.Font = Enum.Font.GothamMedium; statusLbl.BackgroundTransparency = 1
 
--- 🟡 5. FIXED FARM ENGINE (NHẶT VÀNG SIÊU NHẠY)
+-- 🟡 4. SMART FARM ENGINE (FIXED WAITING)
 local currentCoins, isResetting = 0, false
 local lastCoinTick = tick()
+
+local function GetMap()
+    return workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map") or workspace:FindFirstChild("CoinContainer")
+end
 
 task.spawn(function()
     while task.wait(0.01) do
         local Config = getgenv().Plepor_Config
         if Config and Config["Turbo Farm"] and not isResetting then
-            -- Quét vàng trên toàn bộ Workspace để không sót
-            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            local mapFound = GetMap()
+            
+            if mapFound and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
                 local root = lp.Character.HumanoidRootPart
                 
-                -- Đổi Server nếu đứng im 5 phút
-                if tick() - lastCoinTick > 300 and Config["Auto Hop"] then
+                -- Đổi Server nếu kẹt
+                if tick() - lastCoinTick > 180 and Config["Auto Hop"] then
                     pcall(function()
                         local res = http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")).data
                         for _, v in pairs(res) do if v.playing < tonumber(Config["Max Players to Hop"]) and v.id ~= game.JobId then game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, v.id) break end end
                     end)
                 end
 
-                -- Reset khi đầy túi
                 if currentCoins >= 40 then
-                    isResetting = true
-                    lp.Character:BreakJoints()
-                    task.wait(7.5)
-                    currentCoins = 0
-                    isResetting = false
-                    continue
+                    isResetting = true; lp.Character:BreakJoints()
+                    task.wait(7.5); currentCoins = 0; isResetting = false; continue
                 end
 
-                -- HÀM NHẶT VÀNG ĐÃ FIX
+                -- Tìm vàng thông minh
                 for _, v in pairs(workspace:GetDescendants()) do
                     if v:IsA("BasePart") and (v.Name:lower():find("coin") or v.Name:lower():find("gold")) then
-                        -- Check xem đồng vàng có "sống" không (không tàng hình, có cha là Map)
                         if v.Parent and v.Transparency < 0.5 then
-                            -- Ép nhân vật tới và gửi tín hiệu chạm liên tục cho đến khi nhặt được
                             root.CFrame = v.CFrame
                             firetouchinterest(root, v, 0)
                             
                             local t = tick()
-                            -- Đợi tối đa 0.3s cho đồng vàng biến mất
-                            while v.Parent and v.Transparency < 0.5 and tick() - t < 0.3 do
-                                rs.Heartbeat:Wait()
-                            end
+                            while v.Parent and v.Transparency < 0.5 and tick() - t < 0.2 do rs.Heartbeat:Wait() end
                             
                             firetouchinterest(root, v, 1)
-                            
-                            -- Nếu vàng biến mất => Nhặt thành công
                             if not v.Parent or v.Transparency > 0.5 then
                                 currentCoins = currentCoins + 1
                                 lastCoinTick = tick()
@@ -160,20 +131,38 @@ task.spawn(function()
                         end
                     end
                 end
+            else
+                -- Không tìm thấy Map hoặc đang ở Sảnh
+                currentCoins = 0
+                lastCoinTick = tick() -- Reset đồng hồ kẹt khi ở sảnh
             end
         end
     end
 end)
 
--- ⚪ 6. INITIALIZE UI LOOP
+-- ⚪ 5. UI LOOP (FIXED STATUS)
 task.spawn(function()
     while task.wait(0.5) do
         if not sg.Parent then break end
-        goldLbl.Text = "TOTAL GOLD: $" .. GetTotalGold()
-        bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
-        local inMatch = (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position.Y < 150)
-        statusLbl.Text = inMatch and "● STATUS: FARMING" or "○ STATUS: WAITING LOBBY"
-        statusLbl.TextColor3 = inMatch and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+        pcall(function()
+            local sb = pgui:FindFirstChild("Scoreboard", true)
+            local gold = "0"
+            if sb then
+                for _, v in pairs(sb:GetDescendants()) do
+                    if v:IsA("TextLabel") and v.Text:match("%d") and not v.Text:find("/") and not v.Text:lower():find("x") then
+                        local n = v.Text:match("[%d%,]+")
+                        if n and n ~= "2018" and n ~= "2019" and #n < 10 then gold = n break end
+                    end
+                end
+            end
+            goldLbl.Text = "TOTAL GOLD: $" .. gold
+            bagLbl.Text = "COIN BAG: " .. currentCoins .. "/40"
+            
+            -- Fix Status hiển thị
+            local isFarming = GetMap() ~= nil
+            statusLbl.Text = isFarming and "● STATUS: FARMING IN MATCH" or "○ STATUS: WAITING FOR MATCH"
+            statusLbl.TextColor3 = isFarming and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+        end)
     end
 end)
 
