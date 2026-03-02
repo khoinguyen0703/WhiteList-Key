@@ -140,6 +140,7 @@ local function ServerHop()
     task.wait(3)
     isHopping = false 
 end
+
 -- 🔵 6. UI GLASS DESIGN (GLOW EFFECT)
 local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
 local main = Instance.new("Frame", sg)
