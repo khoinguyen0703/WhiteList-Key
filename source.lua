@@ -1,20 +1,33 @@
--- [[ PLEPORM HUB - ULTIMATE STABLE VERSION ]]
--- [ GLOW UI | GUARANTEED COIN | FIX AUTO HOP | BYPASS AC ]
+-- [[ PLEPORM HUB - SOURCE SCRIPT ]]
+-- [ DO NOT SHARE THIS FILE DIRECTLY ]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
-local lp = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
 local rs = game:GetService("RunService")
 local pgui = lp:WaitForChild("PlayerGui")
 local ts = game:GetService("TweenService")
 local http = game:GetService("HttpService")
 local tps = game:GetService("TeleportService")
+local lighting = game:GetService("Lighting")
 
 local ScriptStartTime = tick()
 local CurrentAction = "INITIALIZING SCRIPT..."
 local isHopping = false 
 local currentCoins = 0
-local lastCoinTick = tick()
+
+-- 🔧 ĐỒNG BỘ CONFIG
+getgenv().Plepor_Config = getgenv().Plepor_Config or {}
+local Config = getgenv().Plepor_Config
+Config["Turbo Farm"] = Config["Turbo Farm"] == nil and true or Config["Turbo Farm"]
+Config["Delete Map"] = Config["Delete Map"] == nil and true or Config["Delete Map"]
+Config["Delete Player"] = Config["Delete Player"] == nil and false or Config["Delete Player"]
+Config["Ghost Character"] = Config["Ghost Character"] == nil and true or Config["Ghost Character"]
+Config["Farm Speed"] = Config["Farm Speed"] or 0.05
+Config["Max Players to Hop"] = Config["Max Players to Hop"] or 8
+Config["Auto Hop"] = Config["Auto Hop"] == nil and true or Config["Auto Hop"]
+Config["Webhook Url"] = Config["Webhook Url"] or ""
 
 -- 🔑 1. WHITELIST SYSTEM
 local script_key = tostring(_G.script_key or "No Key"):gsub("%s+", "")
@@ -31,73 +44,90 @@ else
 end
 if not is_whitelisted then return lp:Kick("❌ WRONG KEY. CONTACT PLEPORM HUB ❌") end
 
--- 🛡️ 2. CLEANUP OLD SCRIPT
+-- 🛡️ 2. CLEANUP OLD SCRIPT & BLUR
 if getgenv().Plepor_Executed then 
     if getgenv().PleporM_Connections then
         for _, v in pairs(getgenv().PleporM_Connections) do if v then v:Disconnect() end end
     end
     if pgui:FindFirstChild("PlepormHub_UI") then pgui.PlepormHub_UI:Destroy() end
+    if lighting:FindFirstChild("Pleporm_Blur") then lighting.Pleporm_Blur:Destroy() end
 end
 getgenv().PleporM_Connections = {}
 getgenv().Plepor_Executed = true
 
--- 📡 3. DISCORD WEBHOOK SYSTEM
-local function SendWebhook(goldAmount)
-    local url = getgenv().Plepor_Config["Webhook Url"]
-    if not url or url == "" then return end
+-- 🕒 4. HÀM CHECK UI (DEEP SCAN TOÀN MÀN HÌNH)
+local function IsMatchUI()
+    local inMatch = false
     pcall(function()
-        local data = {
-            ["content"] = "",
-            ["embeds"] = {{
-                ["title"] = "💰 PleporM Hub - Farm Report",
-                ["description"] = "✅ **Bag Full! Collected " .. tostring(goldAmount) .. " coins.**\n👤 **Player:** ||" .. lp.Name .. "||\n👥 **Server Players:** " .. tostring(#game.Players:GetPlayers()),
-                ["color"] = tonumber(0xFFD700)
-            }}
-        }
-        local requestFunc = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
-        if requestFunc then
-            requestFunc({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = http:JSONEncode(data)})
+        local mainGui = pgui:FindFirstChild("MainGUI") or pgui:FindFirstChild("MainGui")
+        if not mainGui then return end
+        
+        -- Quét sâu toàn bộ MainGUI để tìm Đồng hồ đếm ngược (Bất chấp game giấu ở đâu)
+        local timerUI = mainGui:FindFirstChild("Timer", true)
+        if timerUI and timerUI:IsA("TextLabel") then
+            local text = timerUI.Text:upper()
+            -- Nếu có các chữ này -> Rõ ràng đang ở sảnh
+            if text:find("INTERMISSION") or text:find("VOTING") or text:find("STARTING") or text:find("WAITING") then
+                return false 
+            -- Nếu nhảy số kiểu "2:30" hoặc "59" -> Đang trong trận cmnr!
+            elseif text:match("%d+:%d+") or text:match("^%d+$") then
+                inMatch = true
+            end
+        end
+
+        -- Quét sâu tìm bảng Sinh tồn (Survival) hoặc Vai trò (Role)
+        local survivalUI = mainGui:FindFirstChild("Survival", true)
+        local roleUI = mainGui:FindFirstChild("Role", true)
+        if (survivalUI and survivalUI.Visible) or (roleUI and roleUI.Visible) then
+            inMatch = true
         end
     end)
+    return inMatch
 end
 
--- 🛠️ 4. OPTIMIZE & IMPROVED BYPASS ANTI-CHEAT
+-- 🛠️ 5. OPTIMIZE
 local function OptimizePerformance()
-    local Config = getgenv().Plepor_Config
     task.spawn(function()
         while getgenv().Plepor_Executed do
             if Config["Delete Map"] then
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if v:IsA("BasePart") and v.Name ~= "Coin_Server" and v.Name ~= "Coin" and not v.Parent:FindFirstChild("Humanoid") then
-                        v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
-                    elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
-                end
-                settings().Rendering.QualityLevel = 1
+                pcall(function()
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("BasePart") then
+                            local name = v.Name:lower()
+                            if name:find("coin") or name:find("gold") or name:find("server") then continue end
+                            if not v.Parent:FindFirstChild("Humanoid") then
+                                v.Transparency = 1; v.Material = Enum.Material.SmoothPlastic
+                            end
+                        elseif v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
+                    end
+                    settings().Rendering.QualityLevel = 1
+                end)
             end
             task.wait(5)
         end
     end)
-    if Config["Delete Player"] then
-        local function deleteChar(char) if char then task.wait(0.1); char:Destroy() end end
-        for _, p in pairs(game.Players:GetPlayers()) do if p ~= lp and p.Character then deleteChar(p.Character) end end
-        table.insert(getgenv().PleporM_Connections, game.Players.PlayerAdded:Connect(function(p)
-            p.CharacterAdded:Connect(function(char) if getgenv().Plepor_Config["Delete Player"] then deleteChar(char) end end)
-        end))
-    end
 end
+OptimizePerformance()
 
 local function BypassAC(char)
     if not char then return end
     local root = char:WaitForChild("HumanoidRootPart", 5)
     local hum = char:WaitForChild("Humanoid", 5)
+    
+    if Config["Ghost Character"] then
+        task.spawn(function()
+            task.wait(0.5)
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") or v:IsA("Decal") then v.Transparency = 1 end
+            end
+        end)
+    end
+
     if root and hum then
         local stepConn = rs.Stepped:Connect(function()
             if char and char.Parent and root and root.Parent then
-                root.Velocity = Vector3.new(0, 0, 0)
-                root.RotVelocity = Vector3.new(0, 0, 0)
-                for _, v in pairs(char:GetDescendants()) do 
-                    if v:IsA("BasePart") then v.CanCollide = false end 
-                end
+                root.Velocity = Vector3.new(0, 0, 0); root.RotVelocity = Vector3.new(0, 0, 0)
+                for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
             end
         end)
         table.insert(getgenv().PleporM_Connections, stepConn)
@@ -106,143 +136,295 @@ end
 table.insert(getgenv().PleporM_Connections, lp.CharacterAdded:Connect(BypassAC))
 if lp.Character then BypassAC(lp.Character) end
 
--- 🔵 5. AUTO HOP TARGET SERVER (STABILIZED)
+-- 🔵 6. AUTO HOP 
 local function ServerHop()
     if isHopping then return end
-    isHopping = true
-    CurrentAction = "HOPPING SERVER..."
-    
+    isHopping = true; CurrentAction = "FINDING NEW SERVER..."
     pcall(function()
-        local Config = getgenv().Plepor_Config
         local maxP = tonumber(Config["Max Players to Hop"]) or 5
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local req = game:HttpGet(url)
-        local data = http:JSONDecode(req)
-        
-        if data and data.data then
-            local servers = data.data
-            -- Xáo trộn danh sách server để tránh join trùng
-            for i = #servers, 2, -1 do
-                local j = math.random(i)
-                servers[i], servers[j] = servers[j], servers[i]
-            end
-            
-            for _, v in ipairs(servers) do 
-                -- ĐIỀU KIỆN TÌM SERVER: Lớn hơn 2 người VÀ nhỏ hơn/bằng giới hạn Max Players
-                if type(v) == "table" and tonumber(v.playing) and v.playing > 2 and v.playing <= maxP and v.id ~= game.JobId then 
-                    tps:TeleportToPlaceInstance(game.PlaceId, v.id, lp)
-                    task.wait(5)
-                end 
+        local cursor = ""; local foundServer = false
+        while not foundServer and getgenv().Plepor_Executed do
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            if cursor ~= "" then url = url .. "&cursor=" .. cursor end
+            local req = game:HttpGet(url); local data = http:JSONDecode(req)
+            if data and data.data then
+                local servers = data.data
+                for i = #servers, 2, -1 do local j = math.random(i); servers[i], servers[j] = servers[j], servers[i] end
+                for _, v in ipairs(servers) do 
+                    if type(v) == "table" and tonumber(v.playing) then
+                        local playing = tonumber(v.playing)
+                        if playing > 2 and playing <= maxP and v.id ~= game.JobId then 
+                            foundServer = true; CurrentAction = "JOINING SERVER (" .. playing .. " PLAYERS)..."
+                            tps:TeleportToPlaceInstance(game.PlaceId, v.id, lp)
+                            task.wait(10); break
+                        end 
+                    end
+                end
+                if not foundServer and data.nextPageCursor then cursor = data.nextPageCursor else break end
+            else break end
+        end
+    end)
+    task.wait(5); isHopping = false 
+end
+
+task.spawn(function()
+    while getgenv().Plepor_Executed do
+        task.wait(3) 
+        if Config["Auto Hop"] and not isHopping then
+            local currentPlayers = #Players:GetPlayers()
+            local maxPlayers = tonumber(Config["Max Players to Hop"]) or 5
+            if currentPlayers > maxPlayers then ServerHop() end
+        end
+    end
+end)
+
+local function GetCoinFromUI()
+    local coinCount = currentCoins -- Giữ nguyên số cũ nếu không tìm thấy
+    pcall(function()
+        local mainGui = pgui:FindFirstChild("MainGUI") or pgui:FindFirstChild("MainGui")
+        if mainGui then
+            -- Quét sâu tìm khu vực chứa túi tiền
+            local coinContainer = mainGui:FindFirstChild("CoinBags", true) or mainGui:FindFirstChild("CoinBag", true)
+            if coinContainer then
+                -- Lục lọi các TextLabel bên trong túi tiền
+                for _, v in pairs(coinContainer:GetDescendants()) do
+                    if v:IsA("TextLabel") and v.Visible then
+                        local text = v.Text
+                        -- Lọc lấy con số (VD: "40 Full!" -> lấy 40, "6" -> lấy 6)
+                        local num = tonumber(string.match(text, "%d+"))
+                        if num and num <= 50 then -- Đề phòng quét nhầm số to đùng nào đó
+                            coinCount = num
+                        end
+                    end
+                end
             end
         end
     end)
-    
-    task.wait(3)
-    isHopping = false 
+    return coinCount
 end
 
--- 🔵 6. UI GLASS DESIGN (GLOW EFFECT)
-local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 0, 0, 0); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); main.BackgroundTransparency = 0.3; main.BorderSizePixel = 0
-main.ClipsDescendants = false 
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
-
-local stroke = Instance.new("UIStroke", main); stroke.Color = Color3.fromRGB(255, 50, 50); stroke.Thickness = 1.5; stroke.Transparency = 0.2
-local glow = Instance.new("ImageLabel", main); glow.Name = "GlowEffect"; glow.BackgroundTransparency = 1; glow.Position = UDim2.new(0, -30, 0, -30); glow.Size = UDim2.new(1, 60, 1, 60); glow.ZIndex = 0; glow.Image = "rbxassetid://5028857084"; glow.ImageColor3 = Color3.fromRGB(255, 200, 100); glow.ImageTransparency = 0.4; glow.ScaleType = Enum.ScaleType.Slice; glow.SliceCenter = Rect.new(24, 24, 276, 276)
-
-local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 35); title.Position = UDim2.new(0, 0, 0, 5); title.Text = "PLEPORM HUB - TRACK STATS"; title.TextColor3 = Color3.fromRGB(255, 255, 255); title.TextSize = 22; title.Font = Enum.Font.Arcade; title.BackgroundTransparency = 1; title.ZIndex = 2
-
--- Cài sẵn Text mặc định thay vì để trống lòi chữ "Label"
-local timeLbl = Instance.new("TextLabel", main); timeLbl.Size = UDim2.new(1, 0, 0, 20); timeLbl.Position = UDim2.new(0, 0, 0, 45); timeLbl.TextSize = 18; timeLbl.Font = Enum.Font.Arcade; timeLbl.TextColor3 = Color3.fromRGB(200, 200, 200); timeLbl.BackgroundTransparency = 1; timeLbl.ZIndex = 2; timeLbl.Text = "UPTIME: 00:00:00"
-
-local goldLbl = Instance.new("TextLabel", main); goldLbl.Size = UDim2.new(1, 0, 0, 30); goldLbl.Position = UDim2.new(0, 0, 0, 75); goldLbl.TextSize = 22; goldLbl.Font = Enum.Font.Arcade; goldLbl.TextColor3 = Color3.fromRGB(255, 215, 0); goldLbl.BackgroundTransparency = 1; goldLbl.ZIndex = 2; goldLbl.Text = "TOTAL GOLD: $0"
-
-local bagLbl = Instance.new("TextLabel", main); bagLbl.Size = UDim2.new(1, 0, 0, 30); bagLbl.Position = UDim2.new(0, 0, 0, 105); bagLbl.TextSize = 20; bagLbl.Font = Enum.Font.Arcade; bagLbl.TextColor3 = Color3.fromRGB(200, 160, 100); bagLbl.BackgroundTransparency = 1; bagLbl.ZIndex = 2; bagLbl.Text = "COIN BAG: 0/40"
-
-local playersLbl = Instance.new("TextLabel", main); playersLbl.Size = UDim2.new(1, 0, 0, 25); playersLbl.Position = UDim2.new(0, 0, 0, 135); playersLbl.TextSize = 18; playersLbl.Font = Enum.Font.Arcade; playersLbl.TextColor3 = Color3.fromRGB(150, 200, 255); playersLbl.BackgroundTransparency = 1; playersLbl.ZIndex = 2; playersLbl.Text = "PLAYERS: LOADING..."
-
-local statusLbl = Instance.new("TextLabel", main); statusLbl.Size = UDim2.new(1, 0, 0, 40); statusLbl.Position = UDim2.new(0, 0, 0, 165); statusLbl.TextSize = 16; statusLbl.Font = Enum.Font.Arcade; statusLbl.BackgroundTransparency = 1; statusLbl.ZIndex = 2; statusLbl.TextWrapped = true; statusLbl.Text = "ACTION:\nINITIALIZING..."
-
-ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 320, 0, 215)}):Play()
-
--- 🟡 7. SUPER TURBO FARM (GUARANTEED SERVER VALIDATION & ANTI-CHEAT BYPASS)
+-- Vòng lặp cập nhật bảng Hub
 task.spawn(function()
     while getgenv().Plepor_Executed do
-        task.wait(0.1) 
-        local Config = getgenv().Plepor_Config
-        if Config and Config["Turbo Farm"] and not isHopping then
+        task.wait(0.5) -- Nửa giây update 1 lần cho nhẹ máy
+        pcall(function()
+            -- Lấy số xu trực tiếp từ UI game
+            currentCoins = GetCoinFromUI()
+            
+            UptimeLabel.Text = "UPTIME: " .. GetUptime()
+            CoinBagLabel.Text = "COIN BAG: " .. currentCoins .. "/40"
+            TotalGoldLabel.Text = "TOTAL GOLD: $" .. (currentCoins + (math.floor(GetUptimeSeconds() / 180) * 40)) -- Ước tính tạm thời nếu fen ko xài leaderstats
+            ActionLabel.Text = "ACTION:\n" .. CurrentAction
+            PlayersLabel.Text = "PLAYERS: " .. #game:GetService("Players"):GetPlayers() .. "/" .. game:GetService("Players").MaxPlayers
+        end)
+    end
+end)
+
+-- 📊 6.1. TRACK STATS (ĐỌC UI TÚI TIỀN VÀ RESET CHUẨN)
+local currentMapName = "" -- Biến check map để reset túi
+
+local function GetCoinFromUI()
+    local count = 0
+    pcall(function()
+        local mainGui = pgui:FindFirstChild("MainGUI") or pgui:FindFirstChild("MainGui")
+        -- Tìm đến con số hiển thị chính xác trên túi tiền MM2
+        local gameUI = mainGui and mainGui:FindFirstChild("Game")
+        local cashUI = gameUI and gameUI:FindFirstChild("CoinBag") and gameUI.CoinBag:FindFirstChild("Container")
+        local amountText = cashUI and cashUI:FindFirstChild("Amount")
+        
+        if amountText and amountText.Text ~= "" then
+            -- Loại bỏ các ký tự lạ, chỉ lấy số (Ví dụ "40/40" -> 40)
+            local cleanText = amountText.Text:match("%d+")
+            count = tonumber(cleanText) or 0
+        end
+    end)
+    return count
+end
+
+task.spawn(function()
+    while getgenv().Plepor_Executed do
+        task.wait(0.5)
+        pcall(function()
+            -- Lấy tên map hiện tại để kiểm tra ván mới
+            local currentMap = "None"
+            for _, v in pairs(workspace:GetChildren()) do
+                if v:IsA("Model") and v:FindFirstChild("CoinContainer") then
+                    currentMap = v.Name
+                    break
+                end
+            end
+
+            -- Nếu phát hiện sang Map mới, ép túi tiền về 0 ngay lập tức (Chống bug kẹt túi đầy ván cũ)
+            if currentMap ~= currentMapName and currentMap ~= "None" then
+                currentMapName = currentMap
+                currentCoins = 0 
+                print("New Map Detected: " .. currentMapName .. " | Resetting Bag Stats.")
+            end
+
+            if IsMatchUI() then
+                currentCoins = GetCoinFromUI()
+            end
+            
+            UptimeLabel.Text = "UPTIME: " .. GetUptime()
+            CoinBagLabel.Text = "COIN BAG: " .. currentCoins .. "/40"
+            TotalGoldLabel.Text = "TOTAL GOLD: $" .. (currentCoins + (math.floor(GetUptimeSeconds() / 180) * 40))
+            ActionLabel.Text = "ACTION:\n" .. CurrentAction
+        end)
+    end
+end)
+
+-- 🔵 7. UI DESIGN CHIẾN TỪ HÌNH ẢNH (BLUR + ROWS)
+local screenBlur = Instance.new("BlurEffect", lighting)
+screenBlur.Name = "Pleporm_Blur"; screenBlur.Size = 20
+
+local sg = Instance.new("ScreenGui", pgui); sg.Name = "PlepormHub_UI"; sg.ResetOnSpawn = false; sg.DisplayOrder = 999; sg.IgnoreGuiInset = true
+local main = Instance.new("Frame", sg); main.Size = UDim2.new(0, 0, 0, 0); main.Position = UDim2.new(0.5, 0, 0.5, 0); main.AnchorPoint = Vector2.new(0.5, 0.5); main.BackgroundColor3 = Color3.fromRGB(35, 40, 45); main.BackgroundTransparency = 0.1; main.BorderSizePixel = 0; main.ClipsDescendants = false; Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
+local stroke = Instance.new("UIStroke", main); stroke.Color = Color3.fromRGB(255, 80, 50); stroke.Thickness = 2.5; stroke.Transparency = 0.1
+
+local blurGlow1 = Instance.new("ImageLabel", main); blurGlow1.BackgroundTransparency = 1; blurGlow1.Position = UDim2.new(0, -45, 0, -45); blurGlow1.Size = UDim2.new(1, 90, 1, 90); blurGlow1.ZIndex = -2; blurGlow1.Image = "rbxassetid://5028857084"; blurGlow1.ImageColor3 = Color3.fromRGB(255, 60, 40); blurGlow1.ImageTransparency = 0.5; blurGlow1.ScaleType = Enum.ScaleType.Slice; blurGlow1.SliceCenter = Rect.new(24, 24, 276, 276)
+local blurGlow2 = Instance.new("ImageLabel", main); blurGlow2.BackgroundTransparency = 1; blurGlow2.Position = UDim2.new(0, -20, 0, -20); blurGlow2.Size = UDim2.new(1, 40, 1, 40); blurGlow2.ZIndex = -1; blurGlow2.Image = "rbxassetid://5028857084"; blurGlow2.ImageColor3 = Color3.fromRGB(255, 100, 50); blurGlow2.ImageTransparency = 0.3; blurGlow2.ScaleType = Enum.ScaleType.Slice; blurGlow2.SliceCenter = Rect.new(24, 24, 276, 276)
+
+local title = Instance.new("TextLabel", main); title.Size = UDim2.new(1, 0, 0, 40); title.Position = UDim2.new(0, 0, 0, 5); title.Text = "PLEPORM HUB - TRACK STATS"; title.TextColor3 = Color3.fromRGB(80, 220, 255); title.TextSize = 22; title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1; title.ZIndex = 2
+
+local rowContainer = Instance.new("Frame", main); rowContainer.Size = UDim2.new(1, -30, 1, -55); rowContainer.Position = UDim2.new(0, 15, 0, 45); rowContainer.BackgroundTransparency = 1; rowContainer.ZIndex = 2
+local layout = Instance.new("UIListLayout", rowContainer); layout.Padding = UDim.new(0, 8); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local function createRow(name, color, order)
+    local row = Instance.new("Frame", rowContainer); row.Size = UDim2.new(1, 0, 0, 35); row.BackgroundColor3 = Color3.fromRGB(25, 30, 35); row.LayoutOrder = order; Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+    local textLabel = Instance.new("TextLabel", row); textLabel.Size = UDim2.new(1, 0, 1, 0); textLabel.BackgroundTransparency = 1; textLabel.TextColor3 = color; textLabel.TextSize = 18; textLabel.Font = Enum.Font.GothamBold; textLabel.ZIndex = 3
+    return textLabel
+end
+
+local timeLbl = createRow("UPTIME: 00:00:00", Color3.fromRGB(240, 240, 240), 1)
+local goldLbl = createRow("TOTAL GOLD: $0", Color3.fromRGB(255, 220, 50), 2)
+local bagLbl = createRow("💰 COIN BAG: 0/40", Color3.fromRGB(255, 150, 50), 3)
+local playersLbl = createRow("PLAYERS: LOADING...", Color3.fromRGB(150, 255, 180), 4)
+local statusLbl = createRow("ACTION: INITIALIZING...", Color3.fromRGB(100, 255, 100), 5)
+
+ts:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 380, 0, 280)}):Play()
+
+-- 🟡 8. SPEED-UNCAPPED TURBO FARM (FIX LỖI KẸT LOBBY KHI SANG VÁN MỚI)
+task.spawn(function()
+    while getgenv().Plepor_Executed do
+        task.wait() 
+        
+        if Config["Turbo Farm"] and not isHopping then
             pcall(function()
                 local char = lp.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
 
-                -- KIỂM TRA ĐIỀU KIỆN HOP (CHỈ HOP KHI SỐ NGƯỜI VƯỢT QUÁ GIỚI HẠN)
-                local maxPlayers = tonumber(Config["Max Players to Hop"]) or 5
-                if Config["Auto Hop"] and #game.Players:GetPlayers() > maxPlayers then
-                    ServerHop()
-                    return
+                local inMatch = IsMatchUI()
+                
+                -- NẾU ĐANG Ở SẢNH CHỜ (Chưa vô map)
+                if not inMatch then
+                    CurrentAction = "WAITING NEXT MATCH..."
+                    currentCoins = 0 -- ÉP RESET TÚI TIỀN VỀ 0 NGAY LẬP TỨC!
+                    root.Anchored = false -- Thả lỏng cơ thể để game Teleport vào map
+                    return 
                 end
 
-                -- Check 40 Vàng
+                -- ===== ĐÃ VÀO TRẬN =====
                 if currentCoins >= 40 then
-                    CurrentAction = "BAG FULL! WAITING FOR MATCH END..."
-                    if tick() - lastCoinTick > 10 then 
-                        SendWebhook(currentCoins)
-                        lastCoinTick = tick() + 9999 
-                    end
+                    CurrentAction = "BAG FULL! HIDING SAFE..."
+                    root.Anchored = true
+                    root.CFrame = CFrame.new(root.Position.X, 300, root.Position.Z)
+                    task.wait(0.5)
                     return
                 end
 
-                local foundCoin = false
-                
-                -- QUÉT TOÀN MAP (Không phụ thuộc thư mục Normal, không check Transparency)
-                for _, v in ipairs(workspace:GetDescendants()) do
-                    if v:IsA("BasePart") and (v.Name == "Coin_Server" or v.Name == "Coin") then
-                        foundCoin = true
-                        CurrentAction = "COLLECTING COINS..."
-                        
-                        -- Bay thẳng tới và hãm phanh lại để chống Anti-Cheat
-                        root.CFrame = v.CFrame
-                        root.Velocity = Vector3.new(0, 0, 0)
-                        
-                        -- Kích hoạt chạm
-                        if firetouchinterest then
-                            firetouchinterest(root, v, 0)
-                            task.wait(0.05)
-                            firetouchinterest(root, v, 1)
+                local nearestCoin = nil
+                local minDistance = math.huge
+
+                -- Quét tìm đồng xu hợp lệ
+                local function checkCoin(v)
+                    if v and v:IsA("BasePart") and not v.Name:find("Collected") then
+                        if v.Name == "Coin_Server" or v.Name == "Coin" or v.Name:match("_Server$") then
+                            local dist = (root.Position - v.Position).Magnitude
+                            if dist < minDistance then
+                                minDistance = dist
+                                nearestCoin = v
+                            end
                         end
-                        
-                        task.wait(0.1) -- Đợi server load nhịp
-                        
-                        -- Đổi tên và giấu đi để quét cục khác, tránh kẹt 1 chỗ
-                        v.Name = "PleporM_Done"
-                        v.CFrame = CFrame.new(0, -9999, 0)
-                        
-                        currentCoins = currentCoins + 1
-                        lastCoinTick = tick()
-                        
-                        task.wait(Config["Farm Speed"] or 0)
-                        break -- Lụm xong 1 cục, ngắt vòng lặp để lụm cục tiếp theo
                     end
                 end
-                
-                -- Xử lý reset túi vàng khi ván đấu kết thúc
-                if not foundCoin then 
-                    CurrentAction = "WAITING FOR MATCH / COINS..."
-                    -- Nếu hơn 15 giây không có cục vàng nào trong map -> Hết ván, reset túi vàng
-                    if tick() - lastCoinTick > 15 then
-                        currentCoins = 0
+
+                -- Tìm rổ xu của map mới (Đổi từ GetChildren sang tìm kiếm bao quát hơn)
+                local container = nil
+                for _, obj in ipairs(workspace:GetChildren()) do
+                    if obj:FindFirstChild("CoinContainer") then
+                        container = obj.CoinContainer
+                        break
                     end
+                end
+
+                if container then
+                    for _, coinNode in ipairs(container:GetChildren()) do
+                        local target = coinNode
+                        if coinNode:IsA("Model") then target = coinNode.PrimaryPart or coinNode:FindFirstChildWhichIsA("BasePart", true) end
+                        checkCoin(target)
+                    end
+                else
+                    for _, v in ipairs(workspace:GetDescendants()) do checkCoin(v) end
+                end
+
+                -- TIẾN HÀNH THU HOẠCH
+                if nearestCoin then
+                    CurrentAction = "SPEED FARMING..."
+                    
+                    local dist = (root.Position - nearestCoin.Position).Magnitude
+                    local safeSpeed = 55 
+                    local duration = dist / safeSpeed
+                    if duration < 0.1 then duration = 0.1 end
+
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
+                    end
+
+                    root.Anchored = true 
+                    root.Velocity = Vector3.zero
+                    
+                    local targetCFrame = nearestCoin.CFrame + Vector3.new(0, 0.5, 0)
+                    local tween = ts:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+                    tween:Play()
+
+                    local maxWait = tick() + duration + 0.2
+                    while nearestCoin.Parent and IsMatchUI() and tick() < maxWait do
+                        local currentDist = (root.Position - nearestCoin.Position).Magnitude
+                        if currentDist <= 3.5 then 
+                            tween:Cancel() 
+                            break 
+                        end
+                        task.wait()
+                    end
+
+                    root.CFrame = nearestCoin.CFrame
+                    root.Anchored = false 
+                    task.wait(0.03) 
+                    
+                    if firetouchinterest then
+                        firetouchinterest(root, nearestCoin, 0)
+                        firetouchinterest(root, nearestCoin, 1)
+                    end
+                    task.wait(0.03) 
+                    
+                    nearestCoin.Name = "Collected"
+                    pcall(function() nearestCoin.Transparency = 1; nearestCoin.CFrame = CFrame.new(0, -9999, 0) end)
+
+                    root.Anchored = true
+                    root.CFrame = root.CFrame + Vector3.new(0, 40, 0)
+                else
+                    CurrentAction = "SCANNING FOR COINS..."
+                    root.Anchored = true
+                    root.Velocity = Vector3.zero
+                    task.wait(0.5) 
                 end
             end)
         end
     end
 end)
 
--- ⚪ 8. INITIALIZE UI LOOP
-OptimizePerformance()
+-- ⚪ 9. UI UPDATE LOOP
 task.spawn(function()
     while sg.Parent do
         task.wait(0.5)
@@ -253,32 +435,40 @@ task.spawn(function()
             local secs = math.floor(elapsed % 60)
             timeLbl.Text = string.format("UPTIME: %02d:%02d:%02d", hours, mins, secs)
 
-            local sb = pgui:FindFirstChild("Scoreboard", true)
-            local gold = "0"
-            if sb then
-                for _, v in pairs(sb:GetDescendants()) do
-                    -- Check an toàn v.Text để không bị lỗi nhịp
-                    if v:IsA("TextLabel") and type(v.Text) == "string" and v.Text ~= "" then
-                        if v.Text:match("%d") and not v.Text:find("/") then
-                            local n = v.Text:match("[%d%,]+")
-                            if n and n ~= "2018" and n ~= "2019" then gold = n break end
+            local mainGui = pgui:FindFirstChild("MainGUI") or pgui:FindFirstChild("MainGui")
+            if mainGui then
+                local sb = mainGui:FindFirstChild("Scoreboard", true)
+                local gold = "0"
+                if sb then
+                    for _, v in pairs(sb:GetDescendants()) do
+                        if v:IsA("TextLabel") and type(v.Text) == "string" and v.Text ~= "" then
+                            if v.Text:match("%d") and not v.Text:find("/") then
+                                local n = v.Text:match("[%d%,]+")
+                                if n and n ~= "2018" and n ~= "2019" then gold = n break end
+                            end
                         end
                     end
                 end
+                goldLbl.Text = "TOTAL GOLD: $" .. gold
+
+                local coinTextObj = mainGui:FindFirstChild("CoinText", true)
+                if not coinTextObj then
+                    for _, v in pairs(mainGui:GetDescendants()) do
+                        if v:IsA("TextLabel") and (v.Name == "CoinText" or v.Name == "CoinAmount") then coinTextObj = v break end
+                    end
+                end
+                
+                if coinTextObj and tonumber(coinTextObj.Text) then currentCoins = tonumber(coinTextObj.Text) end
             end
             
-            goldLbl.Text = "TOTAL GOLD: $" .. gold
-            bagLbl.Text = "COIN BAG: " .. tostring(currentCoins) .. "/40"
-            
-            local players = game.Players:GetPlayers()
+            bagLbl.Text = "💰 COIN BAG: " .. tostring(currentCoins) .. "/40"
+            local players = Players:GetPlayers()
             playersLbl.Text = "PLAYERS: " .. tostring(#players) .. "/12"
+            statusLbl.Text = "ACTION: " .. tostring(CurrentAction)
             
-            statusLbl.Text = "ACTION:\n" .. tostring(CurrentAction)
-            
-            -- Chỉnh màu text theo trạng thái
-            if CurrentAction:find("COLLECTING") then statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
+            if CurrentAction:find("FARMING") then statusLbl.TextColor3 = Color3.fromRGB(100, 255, 100)
             elseif CurrentAction:find("WAITING") then statusLbl.TextColor3 = Color3.fromRGB(255, 200, 100)
-            elseif CurrentAction:find("FULL") or CurrentAction:find("HOPPING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+            elseif CurrentAction:find("FULL") or CurrentAction:find("FINDING") or CurrentAction:find("JOINING") then statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
             else statusLbl.TextColor3 = Color3.fromRGB(255, 255, 255) end
         end)
     end
